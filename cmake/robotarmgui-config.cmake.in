@@ -1,0 +1,54 @@
+# RobotArmGUI CMake config file
+#
+# This file sets the following variables:
+# RobotArmGUI_FOUND - Always TRUE.
+# RobotArmGUI_INCLUDE_DIRS - Directories containing the RobotArmGUI include files.
+# RobotArmGUI_IDL_DIRS - Directories containing the RobotArmGUI IDL files.
+# RobotArmGUI_LIBRARIES - Libraries needed to use RobotArmGUI.
+# RobotArmGUI_DEFINITIONS - Compiler flags for RobotArmGUI.
+# RobotArmGUI_VERSION - The version of RobotArmGUI found.
+# RobotArmGUI_VERSION_MAJOR - The major version of RobotArmGUI found.
+# RobotArmGUI_VERSION_MINOR - The minor version of RobotArmGUI found.
+# RobotArmGUI_VERSION_REVISION - The revision version of RobotArmGUI found.
+# RobotArmGUI_VERSION_CANDIDATE - The candidate version of RobotArmGUI found.
+
+message(STATUS "Found RobotArmGUI-@PROJECT_VERSION@")
+set(RobotArmGUI_FOUND TRUE)
+
+find_package(<dependency> REQUIRED)
+
+#set(RobotArmGUI_INCLUDE_DIRS
+#    "@CMAKE_INSTALL_PREFIX@/include/@PROJECT_NAME_LOWER@-@PROJECT_VERSION_MAJOR@"
+#    ${<dependency>_INCLUDE_DIRS}
+#    )
+#
+#set(RobotArmGUI_IDL_DIRS
+#    "@CMAKE_INSTALL_PREFIX@/include/@PROJECT_NAME_LOWER@-@PROJECT_VERSION_MAJOR@/idl")
+set(RobotArmGUI_INCLUDE_DIRS
+    "@CMAKE_INSTALL_PREFIX@/include/@CPACK_PACKAGE_FILE_NAME@"
+    ${<dependency>_INCLUDE_DIRS}
+    )
+set(RobotArmGUI_IDL_DIRS
+    "@CMAKE_INSTALL_PREFIX@/include/@CPACK_PACKAGE_FILE_NAME@/idl")
+
+
+if(WIN32)
+    set(RobotArmGUI_LIBRARIES
+        "@CMAKE_INSTALL_PREFIX@/@LIB_INSTALL_DIR@/@CMAKE_SHARED_LIBRARY_PREFIX@@PROJECT_NAME_LOWER@@CMAKE_STATIC_LIBRARY_SUFFIX@"
+        ${<dependency>_LIBRARIES}
+        )
+else(WIN32)
+    set(RobotArmGUI_LIBRARIES
+        "@CMAKE_INSTALL_PREFIX@/@LIB_INSTALL_DIR@/@CMAKE_SHARED_LIBRARY_PREFIX@@PROJECT_NAME_LOWER@@CMAKE_SHARED_LIBRARY_SUFFIX@"
+        ${<dependency>_LIBRARIES}
+        )
+endif(WIN32)
+
+set(RobotArmGUI_DEFINITIONS ${<dependency>_DEFINITIONS})
+
+set(RobotArmGUI_VERSION @PROJECT_VERSION@)
+set(RobotArmGUI_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(RobotArmGUI_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(RobotArmGUI_VERSION_REVISION @PROJECT_VERSION_REVISION@)
+set(RobotArmGUI_VERSION_CANDIDATE @PROJECT_VERSION_CANDIDATE@)
+
