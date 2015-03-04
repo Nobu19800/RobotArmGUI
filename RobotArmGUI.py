@@ -67,10 +67,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 	def __init__(self, manager):
 		OpenRTM_aist.DataFlowComponentBase.__init__(self, manager)
 
-		self._d_jpos = RTC.TimedDoubleSeq(RTC.Time(0,0),[])
-		"""
-		"""
-		self._jposIn = OpenRTM_aist.InPort("jpos", self._d_jpos)
+		
 
 		"""
 		"""
@@ -149,7 +146,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		# Bind variables and configuration variable
 		
 		# Set InPort buffers
-		self.addInPort("jpos",self._jposIn)
+		
 		
 		# Set OutPort buffers
 		
@@ -244,14 +241,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		#
 		#
 	def onExecute(self, ec_id):
-                if self._jposIn.isNew():
-                        data = self._jposIn.read()
-                        for i in range(0,3):
-                                self.theta[i] = data.data[i]
-                        lf = self.flen
-                        if self.gripFlag:
-                                lf = 0
-                        self.moveRobot(self.theta, lf)
+                
                         
 		return RTC.RTC_OK
 	
@@ -476,7 +466,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                 OgreRTS.OgreObj.setEColor(self.targetPoint, 1, 0, 0, 1)
 
-                self.theta = [0, 0, 0]
+                self.theta = [0, 0.5, 0.5]
                 self.moveRobot(self.theta, 0.2)
       
         def moveRobot(self, theta, hlength):
@@ -617,7 +607,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
 
         def ogre_loop(self):
-                pass
+                try:
+                        
+                        jp = self._ManipulatorCommonInterface_Common._ptr().getFeedbackPosJoint()
+                        for i in range(0,3):
+                                self.theta[i] = jp[1][i]
+                        lf = self.flen
+                        if self.gripFlag:
+                                lf = 0
+                        self.moveRobot(self.theta, lf)
+                except:
+                        pass
                 #theta = [0.5, 0.5, 0]
                 #self.moveRobot(theta, 0.2)
                 
