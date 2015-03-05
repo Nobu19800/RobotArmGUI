@@ -90,8 +90,8 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.l = [0, 0, 0, 0]
                 self.l[0] = 0.05*self.scale
                 self.l[1] = 0.05*self.scale
-                self.l[2] = 0.1*self.scale
-                self.l[3] = 0.1*self.scale
+                self.l[2] = 0.15*self.scale
+                self.l[3] = 0.15*self.scale
 
                 self.lv = [0, 0, 0, 0]
                 self.lv[0] = numpy.array([0, 0, self.l[0]])
@@ -101,7 +101,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.link_s = None
                 self.link_s2 = None
-                self.ls = 0.03*self.scale
+                self.ls = 0.05*self.scale
                 self.lsv = numpy.array([0, 0, self.ls])
 
                 self.lsv2 = self.lv[2]
@@ -121,7 +121,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetLimit = (self.l[2]+self.l[3])
                 self.limitZ = 0.03*self.scale
                 
-                self.targetPosition = [0, self.l[2], self.l[0]+self.l[1]-self.l[3]+self.limitZ]
+                self.targetPosition = [0, self.l[2], self.limitZ]
 
                 self.gripFlag = False
                 self.flen = 0.01*self.scale
@@ -341,7 +341,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 return ans
 
         def ogre_init(self):
-                OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
+                OgreRTS.OgreObj.SetCameraAutoMoveFlag(True)
 
                 l = 0.3
                 w = 0.03
@@ -431,23 +431,23 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
                 
                 
-                self.link[0] = OgreRTS.OgreObj.CreateBody("link0","ODEBox.mesh")
-                self.link[0].SetScale(self.w, self.w, self.l[0])
-                self.link[1] = OgreRTS.OgreObj.CreateBody("link1","ODEBox.mesh")
-                self.link[1].SetScale(self.w, self.w, self.l[1])
-                self.link[2] = OgreRTS.OgreObj.CreateBody("link2","ODEBox.mesh")
-                self.link[2].SetScale(self.w, self.l[2], self.w)
-                self.link[3] = OgreRTS.OgreObj.CreateBody("link3","ODEBox.mesh")
-                self.link[3].SetScale(self.w, self.w, self.l[3])
+                self.link[0] = OgreRTS.OgreObj.CreateBody("link0","Link0.mesh")
+                self.link[0].SetScale(self.scale/10, self.scale/10, self.scale/10)
+                self.link[1] = OgreRTS.OgreObj.CreateBody("link1","Link1.mesh")
+                self.link[1].SetScale(self.scale/10, self.scale/10, self.scale/10)
+                self.link[2] = OgreRTS.OgreObj.CreateBody("link2","Link2.mesh")
+                self.link[2].SetScale(self.scale/10, self.scale/10, self.scale/10)
+                self.link[3] = OgreRTS.OgreObj.CreateBody("link3","Link3.mesh")
+                self.link[3].SetScale(self.scale/10, self.scale/10, self.scale/10)
 
-                self.link_s = OgreRTS.OgreObj.CreateBody("link_s","ODEBox.mesh")
-                self.link_s.SetScale(self.w, self.w, self.ls)
+                self.link_s = OgreRTS.OgreObj.CreateBody("link_s","Links1.mesh")
+                self.link_s.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
-                self.link_s2 = OgreRTS.OgreObj.CreateBody("link_s2","ODEBox.mesh")
-                self.link_s2.SetScale(self.w, self.l[2], self.w)
+                self.link_s2 = OgreRTS.OgreObj.CreateBody("link_s2","Links2.mesh")
+                self.link_s2.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
-                self.hand = OgreRTS.OgreObj.CreateBody("hand","ODEBox.mesh")
-                self.hand.SetScale(self.wh, self.wh, self.lh)
+                self.hand = OgreRTS.OgreObj.CreateBody("hand","Linkh.mesh")
+                self.hand.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
                 self.finger[0] = OgreRTS.OgreObj.CreateBody("finger1","ODEBox.mesh")
                 self.finger[0].SetScale(self.wf, self.wf, self.lf)
@@ -457,7 +457,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 OgreRTS.OgreObj.SetFloor("ground", "groundh", "Examples/GrassFloor", 5000, 2)                
                 OgreRTS.OgreObj.SetSkyBox("Examples/TrippySkyBox", 10000)
-                OgreRTS.OgreObj.SetCameraPosition(350, 0, 350)
+                OgreRTS.OgreObj.SetCameraPosition(550, 0, 550)
                 OgreRTS.OgreObj.SetCameraRotation(90, 45, 0)
 
                 
@@ -466,7 +466,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                 OgreRTS.OgreObj.setEColor(self.targetPoint, 1, 0, 0, 1)
 
-                self.theta = [0, 0.5, 0.5]
+                self.theta = [-0.5, 0.5, 0.5, 0]
                 self.moveRobot(self.theta, 0.2)
       
         def moveRobot(self, theta, hlength):
@@ -571,19 +571,34 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.finger[0].SetPosition(pt[3][0]+self.wf/2.+hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
                 self.finger[1].SetPosition(pt[3][0]-self.wf/2.-hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
 
+                qoff = [math.cos(math.pi/4), math.sin(math.pi/4), 0, 0]
+
                 q1 = [math.cos(theta[0]/2), 0, 0, math.sin(theta[0]/2)]
                 q2 = [math.cos(theta[1]/2), math.sin(theta[1]/2), 0, 0]
                 q3 = [math.cos(theta[2]/2), math.sin(theta[2]/2), 0, 0]
                 qs = [math.cos(theta_s/2), math.sin(theta_s/2), 0, 0]
-                self.link[0].SetQuaternion(1,0,0,0)
-                self.link[1].SetQuaternion(q1[0],q1[1],q1[2],q1[3])
+                self.link[0].SetQuaternion(qoff[0],qoff[1],qoff[2],qoff[3])
+                qo1 = self.dotQuat(q1, qoff)
+                self.link[1].SetQuaternion(qo1[0],qo1[1],qo1[2],qo1[3])
                 q12 = self.dotQuat(q1, q2)
-                self.link[2].SetQuaternion(q12[0],q12[1],q12[2],q12[3])
+                qo2 = self.dotQuat(q12, qoff)
+                self.link[2].SetQuaternion(qo2[0],qo2[1],qo2[2],qo2[3])
                 q13 = self.dotQuat(q12, q3)
-                self.link[3].SetQuaternion(q13[0],q13[1],q13[2],q13[3])
+                qo3 = self.dotQuat(q13, qoff)
+                self.link[3].SetQuaternion(qo3[0],qo3[1],qo3[2],qo3[3])
                 q1s = self.dotQuat(q1, qs)
-                self.link_s.SetQuaternion(q1s[0],q1s[1],q1s[2],q1s[3])
-                self.link_s2.SetQuaternion(q12[0],q12[1],q12[2],q12[3])
+                qos = self.dotQuat(q1s, qoff)
+                self.link_s.SetQuaternion(qos[0],qos[1],qos[2],qos[3])
+                self.link_s2.SetQuaternion(qo2[0],qo2[1],qo2[2],qo2[3])
+
+                qh = [math.cos(theta[3]/2), 0, 0, math.sin(theta[3]/2)]
+                q1h = self.dotQuat(q1, qh)
+                qoh = self.dotQuat(q1h, qoff)
+                self.hand.SetQuaternion(qoh[0],qoh[1],qoh[2],qoh[3])
+
+                self.finger[0].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
+
+                self.finger[1].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
                 
                 """for i in range(0, 4):
                         self.link[i].SetQuaternion(1,0,0,0)
@@ -610,7 +625,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 try:
                         
                         jp = self._ManipulatorCommonInterface_Common._ptr().getFeedbackPosJoint()
-                        for i in range(0,3):
+                        for i in range(0,4):
                                 self.theta[i] = jp[1][i]
                         lf = self.flen
                         if self.gripFlag:
