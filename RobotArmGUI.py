@@ -119,12 +119,14 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.targetSize = 0.01*self.scale
                 self.targetLimit = (self.l[2]+self.l[3])
-                self.limitZ = 0.03*self.scale
+                self.limitZ = 0.02*self.scale
                 
                 self.targetPosition = [0, self.l[2], self.limitZ]
 
                 self.gripFlag = False
                 self.flen = 0.01*self.scale
+
+                
 
                 
 		# initialize of configuration-data.
@@ -341,7 +343,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 return ans
 
         def ogre_init(self):
-                OgreRTS.OgreObj.SetCameraAutoMoveFlag(True)
+                OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
 
                 l = 0.3
                 w = 0.03
@@ -368,7 +370,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.slz.SetSize(w, l)
 
                 self.slx.SetSliderValue(0.5 + self.targetPosition[0]/self.targetLimit/2)
-                self.sly.SetSliderValue(0.5 + self.targetPosition[1]/self.targetLimit/2)
+                self.sly.SetSliderValue(self.targetPosition[1]/self.targetLimit)
                 self.slz.SetSliderValue((self.targetPosition[2]-self.limitZ)/(self.targetLimit-self.limitZ))
 
 
@@ -449,16 +451,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.hand = OgreRTS.OgreObj.CreateBody("hand","Linkh.mesh")
                 self.hand.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
-                self.finger[0] = OgreRTS.OgreObj.CreateBody("finger1","ODEBox.mesh")
-                self.finger[0].SetScale(self.wf, self.wf, self.lf)
+                #self.finger[0] = OgreRTS.OgreObj.CreateBody("finger1","ODEBox.mesh")
+                #self.finger[0].SetScale(self.wf, self.wf, self.lf)
 
-                self.finger[1] = OgreRTS.OgreObj.CreateBody("finger2","ODEBox.mesh")
-                self.finger[1].SetScale(self.wf, self.wf, self.lf)
+                #self.finger[1] = OgreRTS.OgreObj.CreateBody("finger2","ODEBox.mesh")
+                #self.finger[1].SetScale(self.wf, self.wf, self.lf)
 
                 OgreRTS.OgreObj.SetFloor("ground", "groundh", "Examples/GrassFloor", 5000, 2)                
                 OgreRTS.OgreObj.SetSkyBox("Examples/TrippySkyBox", 10000)
-                OgreRTS.OgreObj.SetCameraPosition(550, 0, 550)
+                OgreRTS.OgreObj.SetCameraPosition(650, 200, 550)
                 OgreRTS.OgreObj.SetCameraRotation(90, 45, 0)
+                OgreRTS.OgreObj.SetLightPosition(0, 0, 3000)
 
                 
                 self.targetPoint = OgreRTS.OgreObj.CreateBody("targetPoint","ODESphere.mesh")
@@ -568,8 +571,8 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.link_s2.SetPosition(psv2[0], psv2[1], psv2[2])
 
                 self.hand.SetPosition(pt[3][0], pt[3][1], pt[3][2]-self.lh)
-                self.finger[0].SetPosition(pt[3][0]+self.wf/2.+hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
-                self.finger[1].SetPosition(pt[3][0]-self.wf/2.-hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
+                #self.finger[0].SetPosition(pt[3][0]+self.wf/2.+hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
+                #self.finger[1].SetPosition(pt[3][0]-self.wf/2.-hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
 
                 qoff = [math.cos(math.pi/4), math.sin(math.pi/4), 0, 0]
 
@@ -596,9 +599,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 qoh = self.dotQuat(q1h, qoff)
                 self.hand.SetQuaternion(qoh[0],qoh[1],qoh[2],qoh[3])
 
-                self.finger[0].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
+                #self.finger[0].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
 
-                self.finger[1].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
+                #self.finger[1].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
                 
                 """for i in range(0, 4):
                         self.link[i].SetQuaternion(1,0,0,0)
@@ -708,7 +711,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                         
                 elif fname == "pysliderSliderChanged":
-                        self.targetPosition[1] = (-0.5 + self.sly.GetSliderValue()) * self.targetLimit*2
+                        self.targetPosition[1] = (self.sly.GetSliderValue()) * self.targetLimit
                         self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                 elif fname == "pzsliderSliderChanged":
                         self.targetPosition[2] = self.slz.GetSliderValue() * self.targetLimit + self.limitZ
