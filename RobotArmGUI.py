@@ -59,7 +59,8 @@ robotarmgui_spec = ["implementation_id", "RobotArmGUI",
 # 
 # 
 class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
-	
+	PointMode = 0
+        JointMode = 1
 	##
 	# @brief constructor
 	# @param manager Maneger Object
@@ -121,13 +122,19 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetLimit = (self.l[2]+self.l[3])
                 self.limitZ = 0.02*self.scale
                 
-                self.targetPosition = [0, self.l[2], self.limitZ]
+                self.targetPosition = [0, self.l[2], self.limitZ, 0]
 
                 self.gripFlag = False
                 self.flen = 0.01*self.scale
 
                 
+                self.mode = RobotArmGUI.PointMode
 
+                self.softUpperLimit = [math.pi*90/180,math.pi*105/180,math.pi*90/180,math.pi/2]
+                self.softLowerLimit = [-math.pi*90/180,0,0,-math.pi/2]
+
+                
+                self.theta = [-0.5, 0.5, 0.5, 0]
                 
 		# initialize of configuration-data.
 		# <rtc-template block="init_conf_param">
@@ -362,33 +369,41 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.slx = OgreRTS.OgreObj.CreateSlider("pxslider")
                 self.sly = OgreRTS.OgreObj.CreateSlider("pyslider")
                 self.slz = OgreRTS.OgreObj.CreateSlider("pzslider")
-                self.slx.SetPosition(x+w/2., y)
-                self.sly.SetPosition(x+w*2+w/2., y)
-                self.slz.SetPosition(x+w*4+w/2., y)
+                self.st0 = OgreRTS.OgreObj.CreateSlider("pt0slider")
+                self.slx.SetPosition(x+w/6., y)
+                self.sly.SetPosition(x+w*3./2.+w/6., y)
+                self.slz.SetPosition(x+w*6./2.+w/6., y)
+                self.st0.SetPosition(x+w*9./2.+w/6., y)
                 self.slx.SetSize(w, l)
                 self.sly.SetSize(w, l)
                 self.slz.SetSize(w, l)
+                self.st0.SetSize(w, l)
 
                 self.slx.SetSliderValue(0.5 + self.targetPosition[0]/self.targetLimit/2)
                 self.sly.SetSliderValue(self.targetPosition[1]/self.targetLimit)
                 self.slz.SetSliderValue((self.targetPosition[2]-self.limitZ)/(self.targetLimit-self.limitZ))
-
+                self.st0.SetSliderValue(0.5);
 
                 self.JointButton = OgreRTS.OgreObj.CreateButton("jointButton")
                 self.JointButton.SetText("–Ú•WŠp“x")
                 self.JointButton.SetPosition(w*6, y-tl_h)
                 self.JointButton.SetSize(w*6, tl_h)
+                self.JointButton.SetAlpha(0.5)
                 
+                self.sj = [None, None, None, None]
+                self.sj[0] = OgreRTS.OgreObj.CreateSlider("j0slider")
+                self.sj[1] = OgreRTS.OgreObj.CreateSlider("j1slider")
+                self.sj[2] = OgreRTS.OgreObj.CreateSlider("j2slider")
+                self.sj[3] = OgreRTS.OgreObj.CreateSlider("j3slider")
+                for i in range(0, 4):
+                      
+                      self.sj[i].SetPosition(x+w*3./2.*i+w*12./2.+w/6., y)
+                      self.sj[i].SetSize(w, l)
+                      if i == 2:
+                              self.sj[2].SetSliderValue((self.theta[2]+self.theta[1]-self.softLowerLimit[2])/(self.softUpperLimit[2]-self.softLowerLimit[2]))
+                      else:
+                              self.sj[i].SetSliderValue((self.theta[i]-self.softLowerLimit[i])/(self.softUpperLimit[i]-self.softLowerLimit[i]))
 
-                self.sj0 = OgreRTS.OgreObj.CreateSlider("jxslider")
-                self.sj1 = OgreRTS.OgreObj.CreateSlider("jyslider")
-                self.sj2 = OgreRTS.OgreObj.CreateSlider("jzslider")
-                self.sj0.SetPosition(x+w*6+w/2., y)
-                self.sj1.SetPosition(x+w*8+w/2., y)
-                self.sj2.SetPosition(x+w*10+w/2., y)
-                self.sj0.SetSize(w, l)
-                self.sj1.SetSize(w, l)
-                self.sj2.SetSize(w, l)
 
 
                 self.closeGripperButton = OgreRTS.OgreObj.CreateButton("closeGripperButton")
@@ -464,12 +479,15 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 OgreRTS.OgreObj.SetLightPosition(0, 0, 3000)
 
                 
-                self.targetPoint = OgreRTS.OgreObj.CreateBody("targetPoint","ODESphere.mesh")
+                self.targetPoint = OgreRTS.OgreObj.CreateBody("targetPoint","ODEBox.mesh")
                 self.targetPoint.SetScale(self.targetSize, self.targetSize, self.targetSize)
                 self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                
+                self.targetPoint.SetQuaternion(math.cos(self.targetPosition[3]/2), 0, 0, math.sin(self.targetPosition[3]/2))
+
                 OgreRTS.OgreObj.setEColor(self.targetPoint, 1, 0, 0, 1)
 
-                self.theta = [-0.5, 0.5, 0.5, 0]
+                
                 self.moveRobot(self.theta, 0.2)
       
         def moveRobot(self, theta, hlength):
@@ -594,9 +612,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.link_s.SetQuaternion(qos[0],qos[1],qos[2],qos[3])
                 self.link_s2.SetQuaternion(qo2[0],qo2[1],qo2[2],qo2[3])
 
-                qh = [math.cos(theta[3]/2), 0, 0, math.sin(theta[3]/2)]
-                q1h = self.dotQuat(q1, qh)
-                qoh = self.dotQuat(q1h, qoff)
+                #qh = [math.cos(theta[3]/2), 0, 0, math.sin(theta[3]/2)]
+                #q1h = self.dotQuat(q1, qh)
+                qoh = self.dotQuat(q1, qoff)
                 self.hand.SetQuaternion(qoh[0],qoh[1],qoh[2],qoh[3])
 
                 #self.finger[0].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
@@ -625,17 +643,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
 
         def ogre_loop(self):
-                try:
-                        
-                        jp = self._ManipulatorCommonInterface_Common._ptr().getFeedbackPosJoint()
-                        for i in range(0,4):
-                                self.theta[i] = jp[1][i]
-                        lf = self.flen
-                        if self.gripFlag:
-                                lf = 0
-                        self.moveRobot(self.theta, lf)
-                except:
-                        pass
+                if self.mode == RobotArmGUI.PointMode:
+                        try:
+                                jp = self._ManipulatorCommonInterface_Common._ptr().getFeedbackPosJoint()
+                                for i in range(0,4):
+                                        self.theta[i] = jp[1][i]
+                                lf = self.flen
+                                if self.gripFlag:
+                                        lf = 0
+                                self.moveRobot(self.theta, lf)
+                        except:
+                                pass
                 #theta = [0.5, 0.5, 0]
                 #self.moveRobot(theta, 0.2)
                 
@@ -649,6 +667,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
         def testClicked(self):
               print 334
 
+        def updateSliderJointAngle(self):
+                if self.mode == RobotArmGUI.JointMode:
+                        for i in range(0, 4):
+                                self.theta[i] = self.sj[i].GetSliderValue()*(self.softUpperLimit[i] - self.softLowerLimit[i]) + self.softLowerLimit[i]
+                        lf = self.flen
+                        if self.gripFlag:
+                                lf = 0
+                        self.theta[2] = self.theta[2] - self.theta[1]
+                        self.moveRobot(self.theta, lf)
+                
+
         def CEGUICallback(self, fname):
                 print fname
                 if fname == "targetButtonClicked":
@@ -657,10 +686,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                                 px = self.targetPosition[0]/self.scale
                                 py = self.targetPosition[1]/self.scale
                                 pz = self.targetPosition[2]/self.scale + self.limitZ/self.scale
+                                the = (-0.5 + self.st0.GetSliderValue())*math.pi
                                 
-                                cp = JARA_ARM.CarPosWithElbow([[1,0,0,px],[0,1,0,py],[0,0,1,pz]], 0, 0)
+                                cp = JARA_ARM.CarPosWithElbow([[math.cos(the),-math.sin(the),0,px],[math.sin(the),math.cos(the),0,py],[0,0,1,pz]], 0, 0)
                                 self._ManipulatorCommonInterface_Middle._ptr().moveLinearCartesianAbs(cp)
-                                
+                                self.mode = RobotArmGUI.PointMode
                         except:
                                 pass
 
@@ -717,7 +747,40 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         self.targetPosition[2] = self.slz.GetSliderValue() * self.targetLimit + self.limitZ
                         self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
 
+                elif fname == "pt0sliderSliderChanged":
+                        self.targetPosition[3] = (-0.5 + self.st0.GetSliderValue())*math.pi
+                        self.targetPoint.SetQuaternion(math.cos(self.targetPosition[3]/2), 0, 0, math.sin(self.targetPosition[3]/2))
 
+                elif fname == "j0sliderSliderChanged":
+                        self.updateSliderJointAngle()
+                elif fname == "j1sliderSliderChanged":
+                        self.updateSliderJointAngle()
+                elif fname == "j2sliderSliderChanged":
+                        self.updateSliderJointAngle()
+                elif fname == "j3sliderSliderChanged":
+                        self.updateSliderJointAngle()
+
+                elif fname == "jointButtonClicked":
+                        if self.mode == RobotArmGUI.JointMode:
+                                try:
+                                        self._ManipulatorCommonInterface_Middle._ptr().movePTPJointAbs(self.theta)
+                                except:
+                                        pass
+                                self.mode = RobotArmGUI.PointMode
+                                self.JointButton.SetAlpha(0.5)
+                        else:
+                                for i in range(0, 4):
+                                      if i == 2:
+                                              self.sj[2].SetSliderValue((self.theta[2]+self.theta[1]-self.softLowerLimit[2])/(self.softUpperLimit[2]-self.softLowerLimit[2]))
+                                      else:
+                                              self.sj[i].SetSliderValue((self.theta[i]-self.softLowerLimit[i])/(self.softUpperLimit[i]-self.softLowerLimit[i]))
+                                self.mode = RobotArmGUI.JointMode
+                                self.JointButton.SetAlpha(1.0)
+                                
+
+                        
+
+                
 
 def RobotArmGUIInit(manager):
     profile = OpenRTM_aist.Properties(defaults_str=robotarmgui_spec)
