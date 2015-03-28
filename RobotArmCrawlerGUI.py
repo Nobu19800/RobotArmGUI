@@ -51,6 +51,18 @@ robotarmgui_spec = ["implementation_id", "RobotArmGUI",
 		 "language",          "Python", 
 		 "lang_type",         "SCRIPT",
 		 ""]
+
+class CrawlerState:
+        Forward = 0
+        Back = 1
+        Right = 2
+        Left = 3
+        Stop = 4
+        Free = 5
+        def __init__(self):
+                pass
+
+        
 # </rtc-template>
 
 ##
@@ -86,6 +98,28 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		"""
 		self._ManipulatorCommonInterface_Middle = OpenRTM_aist.CorbaConsumer(interfaceType=JARA_ARM.ManipulatorCommonInterface_Middle)
 
+
+                self._d_crawlerPos = RTC.TimedPose2D(RTC.Time(0,0),RTC.Pose2D(RTC.Point2D(0,0),0))
+		"""
+		"""
+		self._crawlerPosIn = OpenRTM_aist.InPort("crawlerPos", self._d_crawlerPos)
+		self._d_crawlerTargetPos = RTC.TimedPose2D(RTC.Time(0,0),RTC.Pose2D(RTC.Point2D(0,0),0))
+		"""
+		"""
+		self._crawlerTargetPosOut = OpenRTM_aist.OutPort("crawlerTargetPos", self._d_crawlerTargetPos)
+
+
+                self._d_crawlerTargetSpeed0 = RTC.TimedDouble(RTC.Time(0,0),0)
+		"""
+		"""
+		self._crawlerTargetSpeed0Out = OpenRTM_aist.OutPort("crawlerTargetSpeed0", self._d_crawlerTargetSpeed0)
+
+                self._d_crawlerTargetSpeed1 = RTC.TimedDouble(RTC.Time(0,0),0)
+		"""
+		"""
+		self._crawlerTargetSpeed1Out = OpenRTM_aist.OutPort("crawlerTargetSpeed1", self._d_crawlerTargetSpeed1)
+
+
                 self.link = [None, None, None, None]
                 self.scale = 1000
                 self.l = [0, 0, 0, 0]
@@ -93,6 +127,13 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.l[1] = 0.05*self.scale
                 self.l[2] = 0.15*self.scale
                 self.l[3] = 0.15*self.scale
+
+                self.clawlerlx = 0.105*self.scale
+                self.clawlerly = 0.171*self.scale
+                self.clawlerlz = 0.056*self.scale
+                
+
+                self.armOffset = numpy.array([0, 0, self.clawlerlz/2.])
 
                 self.lv = [0, 0, 0, 0]
                 self.lv[0] = numpy.array([0, 0, self.l[0]])
@@ -135,6 +176,22 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 
                 self.theta = [-0.5, 0.5, 0.5, 0]
+                self.hlength = 0.2
+
+                #self.crawlerPos = numpy.array([self.scale*0.1, self.scale*0.1, 0.])
+                #self.crawlerOri = [0., 0., math.pi/4]
+                self.crawlerPos = numpy.array([0., 0., self.clawlerlz/2])
+                self.crawlerOri = [0., 0., 0]
+
+                self.cameraX = 650
+                self.cameraY = 200
+                self.cameraZ = 550
+
+                self.crawlerState = CrawlerState.Stop
+                
+
+                
+                
                 
 		# initialize of configuration-data.
 		# <rtc-template block="init_conf_param">
@@ -168,6 +225,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		# Set CORBA Service Ports
 		self.addPort(self._ManipulatorCommonInterface_CommonPort)
 		self.addPort(self._ManipulatorCommonInterface_MiddlePort)
+
+		# Set InPort buffers
+		self.addInPort("crawlerPos",self._crawlerPosIn)
+		
+		# Set OutPort buffers
+		self.addOutPort("crawlerTargetPos",self._crawlerTargetPosOut)
+
+
+                self.addOutPort("crawlerTargetSpeed0",self._crawlerTargetSpeed0Out)
+                self.addOutPort("crawlerTargetSpeed1",self._crawlerTargetSpeed1Out)
+		
 		
 		return RTC.RTC_OK
 	
@@ -445,6 +513,75 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.serboOFFButton.SetText("サーボOFF")
                 self.serboOFFButton.SetPosition(w*18, y)
                 self.serboOFFButton.SetSize(w*6, tl_h)
+
+                self.forwordButton = OgreRTS.OgreObj.CreateButton("forwordButton")
+                self.forwordButton.SetText("前進")
+                self.forwordButton.SetPosition(w*18, y+tl_h)
+                self.forwordButton.SetSize(w*6, tl_h)
+
+                self.backButton = OgreRTS.OgreObj.CreateButton("backButton")
+                self.backButton.SetText("後退")
+                self.backButton.SetPosition(w*18, y+tl_h*2)
+                self.backButton.SetSize(w*6, tl_h)
+
+                self.rightButton = OgreRTS.OgreObj.CreateButton("rightButton")
+                self.rightButton.SetText("右旋回")
+                self.rightButton.SetPosition(w*18, y+tl_h*3)
+                self.rightButton.SetSize(w*6, tl_h)
+
+                self.leftButton = OgreRTS.OgreObj.CreateButton("leftButton")
+                self.leftButton.SetText("左旋回")
+                self.leftButton.SetPosition(w*18, y+tl_h*4)
+                self.leftButton.SetSize(w*6, tl_h)
+
+                self.speed0Button = OgreRTS.OgreObj.CreateButton("speed0Button")
+                self.speed0Button.SetText("速度0")
+                self.speed0Button.SetPosition(w*18, y+tl_h*5)
+                self.speed0Button.SetSize(w*6, tl_h)
+
+                self.FreeButton = OgreRTS.OgreObj.CreateButton("FreeButton")
+                self.FreeButton.SetText("スライダーでの操作")
+                self.FreeButton.SetPosition(w*24, y-tl_h)
+                self.FreeButton.SetSize(w*9, tl_h)
+
+
+                self.speedText = OgreRTS.OgreObj.CreateStaticText("speedText")
+                self.speedText.SetText("速度")
+                self.speedText.SetPosition(w*24, y)
+                self.speedText.SetSize(w*3, tl_h)
+
+                self.speedSlider = OgreRTS.OgreObj.CreateSlider("speedSlider")
+                
+                self.speedSlider.SetPosition(w*25, y+tl_h)
+                self.speedSlider.SetSize(w, l-tl_h)
+
+                self.speedSlider.SetSliderValue(1.0)
+
+                self.rightSpeedText = OgreRTS.OgreObj.CreateStaticText("rightSpeedText")
+                self.rightSpeedText.SetText("右車輪")
+                self.rightSpeedText.SetPosition(w*27, y)
+                self.rightSpeedText.SetSize(w*3, tl_h)
+
+                self.RightSpeedSlider = OgreRTS.OgreObj.CreateSlider("RightSpeedSlider")
+                
+                self.RightSpeedSlider.SetPosition(w*28, y+tl_h)
+                self.RightSpeedSlider.SetSize(w, l-tl_h)
+
+                self.RightSpeedSlider.SetSliderValue(0.5)
+
+                self.LeftSpeedText = OgreRTS.OgreObj.CreateStaticText("LeftSpeedText")
+                self.LeftSpeedText.SetText("左車輪")
+                self.LeftSpeedText.SetPosition(w*30, y)
+                self.LeftSpeedText.SetSize(w*3, tl_h)
+
+                self.LeftSpeedSlider = OgreRTS.OgreObj.CreateSlider("LeftSpeedSlider")
+                
+                self.LeftSpeedSlider.SetPosition(w*31, y+tl_h)
+                self.LeftSpeedSlider.SetSize(w, l-tl_h)
+
+                self.LeftSpeedSlider.SetSliderValue(0.5)
+                
+                
                 
                 
                 
@@ -466,6 +603,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.hand = OgreRTS.OgreObj.CreateBody("hand","Linkh.mesh")
                 self.hand.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
+                self.crawler = OgreRTS.OgreObj.CreateBody("crawler","ODEBox.mesh")
+                self.crawler.SetScale(self.clawlerlx, self.clawlerly, self.clawlerlz)
+
                 #self.finger[0] = OgreRTS.OgreObj.CreateBody("finger1","ODEBox.mesh")
                 #self.finger[0].SetScale(self.wf, self.wf, self.lf)
 
@@ -474,7 +614,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 OgreRTS.OgreObj.SetFloor("ground", "groundh", "Examples/GrassFloor", 5000, 2)                
                 OgreRTS.OgreObj.SetSkyBox("Examples/TrippySkyBox", 10000)
-                OgreRTS.OgreObj.SetCameraPosition(650, 200, 550)
+                OgreRTS.OgreObj.SetCameraPosition(self.cameraX, self.cameraY, self.cameraZ)
                 OgreRTS.OgreObj.SetCameraRotation(90, 45, 0)
                 OgreRTS.OgreObj.SetLightPosition(0, 0, 3000)
 
@@ -483,21 +623,115 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetPoint.SetScale(self.targetSize, self.targetSize, self.targetSize)
                 self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                 
-                self.targetPoint.SetQuaternion(math.cos(self.targetPosition[3]/2), 0, 0, math.sin(self.targetPosition[3]/2))
+                self.updateTargetRot()
 
                 OgreRTS.OgreObj.setEColor(self.targetPoint, 1, 0, 0, 1)
 
                 
-                self.moveRobot(self.theta, 0.2)
-      
-        def moveRobot(self, theta, hlength):
+                self.setPosition(self.theta, 0.2)
+
+        def getTargetPosInc(self):
+                E = self.getCrawlerRot()
+                Einv = numpy.linalg.inv(E)
+                tp = numpy.array([self.targetPosition[0], self.targetPosition[1], self.targetPosition[2]])
+                P = numpy.dot(Einv, tp)
+
+                P[0] = P[0] - self.crawlerPos[0]
+                P[1] = P[1] - self.crawlerPos[1]
+                P[2] = P[2] - self.crawlerPos[2]
+
+                return P
+
+
+                
+
+        def getCrawlerQuat(self):
+                qx = [math.cos(self.crawlerOri[0]/2.), math.sin(self.crawlerOri[0]/2.), 0, 0]
+                qy = [math.cos(self.crawlerOri[1]/2.), 0, math.sin(self.crawlerOri[1]/2.), 0]
+                qz = [math.cos(self.crawlerOri[2]/2.), 0, 0, math.sin(self.crawlerOri[2]/2.)]
+                qxy = self.dotQuat(qy, qx)
+                qxyz = self.dotQuat(qz, qxy)
+
+                return qxyz
+
+        def getCrawlerRot(self):
+                Ex = numpy.identity(3)
+
+                Sx = math.sin(self.crawlerOri[0])
+                Cx = math.cos(self.crawlerOri[0])
+                Sy = math.sin(self.crawlerOri[1])
+                Cy = math.cos(self.crawlerOri[1])
+                Sz = math.sin(self.crawlerOri[2])
+                Cz = math.cos(self.crawlerOri[2])
+                
+                Ex[0][0] = 1
+                Ex[0][1] = 0
+                Ex[0][2] = 0
+                Ex[1][0] = 0
+                Ex[1][1] = Cx
+                Ex[1][2] = -Sx
+                Ex[2][0] = 0
+                Ex[2][1] = Sx
+                Ex[2][2] = Cx
+                
+                Ey = numpy.identity(3)
+
+                Ey[0][0] = Cy
+                Ey[0][1] = 0
+                Ey[0][2] = Sy
+                Ey[1][0] = 0
+                Ey[1][1] = 1
+                Ey[1][2] = 0
+                Ey[2][0] = -Sy
+                Ey[2][1] = 0
+                Ey[2][2] = Cy
+                
+                Ez = numpy.identity(3)
+
+                Ez[0][0] = Cz
+                Ez[0][1] = -Sz
+                Ez[0][2] = 0
+                Ez[1][0] = Sz
+                Ez[1][1] = Cz
+                Ez[1][2] = 0
+                Ez[2][0] = 0
+                Ez[2][1] = 0
+                Ez[2][2] = 1
+
+                Rxy = numpy.dot(Ey, Ex)
+                Rxyz = numpy.dot(Ez, Rxy)
+
+                return Rxyz
+
+        def setPosition(self, theta, hlength):
+                self.theta = theta
+                self.hlength = hlength
+
+                self.moveRobot()
+
+        def setCrawlerPos(self, pos, ori):
+                self.crawlerPos = pos
+                self.crawlerOri = ori
+
+                
+
+                self.moveRobot()
+
+                OgreRTS.OgreObj.SetCameraPosition(self.cameraX+self.crawlerPos[0], self.cameraY+self.crawlerPos[1], self.cameraZ+self.crawlerPos[2])
+
+        
+              
+        def moveRobot(self):
+                
+                Ecl = self.getCrawlerRot()
+                
                 E = [0, 0, 0]
-                S1 = math.sin(theta[0])
-                C1 = math.cos(theta[0])
-                S2 = math.sin(theta[1])
-                C2 = math.cos(theta[1])
-                S3 = math.sin(theta[2])
-                C3 = math.cos(theta[2])
+                S1 = math.sin(self.theta[0])
+                C1 = math.cos(self.theta[0])
+                S2 = math.sin(self.theta[1])
+                C2 = math.cos(self.theta[1])
+                S3 = math.sin(self.theta[2])
+                C3 = math.cos(self.theta[2])
 
 
 
@@ -539,25 +773,26 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 E[2][2][2] = C3
 
                 R = [0, 0, 0]
-                R[0] = E[0]
-                R[1] = numpy.dot(E[0], E[1])
+                R[0] = numpy.dot(Ecl, E[0])
+                R[1] = numpy.dot(R[0], E[1])
                 R[2] = numpy.dot(R[1],E[2])
 
+                po = self.crawlerPos + numpy.dot(Ecl, self.armOffset)
 
                 pt = [0, 0, 0, 0]
 
-                pt[0] = self.lv[0]
+                pt[0] = numpy.dot(Ecl, self.lv[0]) + po
                 pt[1] = pt[0] + numpy.dot(R[0],self.lv[1])
                 pt[2] = pt[1] + numpy.dot(R[1],self.lv[2])
                 pt[3] = pt[2] + numpy.dot(R[2],self.lv[3])
 
                 pv = [0, 0, 0, 0]
-                pv[0] = pt[0]/2.
+                pv[0] = (po + pt[0])/2.
                 pv[1] = (pt[1] + pt[0])/2.
                 pv[2] = (pt[2] + pt[1])/2.
                 pv[3] = (pt[3] + pt[2])/2.
 
-                theta_s = theta[2] + theta[1]
+                theta_s = self.theta[2] + self.theta[1]
 
 
                 Es = numpy.identity(3)
@@ -582,6 +817,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 psv = (pt[1] + pst)/2.
                 psv2 = (pst + pst2)/2.
 
+                
+                self.crawler.SetPosition(self.crawlerPos[0],self.crawlerPos[1],self.crawlerPos[2])
+                
+
                 for i in range(0, 4):
                         self.link[i].SetPosition(pv[i][0], pv[i][1], pv[i][2])
 
@@ -589,33 +828,40 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.link_s2.SetPosition(psv2[0], psv2[1], psv2[2])
 
                 self.hand.SetPosition(pt[3][0], pt[3][1], pt[3][2]-self.lh)
-                #self.finger[0].SetPosition(pt[3][0]+self.wf/2.+hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
-                #self.finger[1].SetPosition(pt[3][0]-self.wf/2.-hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
+                #self.finger[0].SetPosition(pt[3][0]+self.wf/2.+self.hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
+                #self.finger[1].SetPosition(pt[3][0]-self.wf/2.-self.hlength/2., pt[3][1], pt[3][2]-self.lh-self.lf)
 
+                
                 qoff = [math.cos(math.pi/4), math.sin(math.pi/4), 0, 0]
+                qcraw = self.getCrawlerQuat()
 
-                q1 = [math.cos(theta[0]/2), 0, 0, math.sin(theta[0]/2)]
-                q2 = [math.cos(theta[1]/2), math.sin(theta[1]/2), 0, 0]
-                q3 = [math.cos(theta[2]/2), math.sin(theta[2]/2), 0, 0]
+                
+
+                q1 = [math.cos(self.theta[0]/2), 0, 0, math.sin(self.theta[0]/2)]
+                q2 = [math.cos(self.theta[1]/2), math.sin(self.theta[1]/2), 0, 0]
+                q3 = [math.cos(self.theta[2]/2), math.sin(self.theta[2]/2), 0, 0]
                 qs = [math.cos(theta_s/2), math.sin(theta_s/2), 0, 0]
-                self.link[0].SetQuaternion(qoff[0],qoff[1],qoff[2],qoff[3])
-                qo1 = self.dotQuat(q1, qoff)
-                self.link[1].SetQuaternion(qo1[0],qo1[1],qo1[2],qo1[3])
-                q12 = self.dotQuat(q1, q2)
+                qco = self.dotQuat(qcraw, qoff)
+                self.crawler.SetQuaternion(qcraw[0],qcraw[1],qcraw[2],qcraw[3])
+                self.link[0].SetQuaternion(qco[0],qco[1],qco[2],qco[3])
+                qoc = self.dotQuat(qcraw, q1)
+                qc1 = self.dotQuat(qoc, qoff)
+                self.link[1].SetQuaternion(qc1[0],qc1[1],qc1[2],qc1[3])
+                q12 = self.dotQuat(qoc, q2)
                 qo2 = self.dotQuat(q12, qoff)
                 self.link[2].SetQuaternion(qo2[0],qo2[1],qo2[2],qo2[3])
                 q13 = self.dotQuat(q12, q3)
                 qo3 = self.dotQuat(q13, qoff)
                 self.link[3].SetQuaternion(qo3[0],qo3[1],qo3[2],qo3[3])
-                q1s = self.dotQuat(q1, qs)
+                q1s = self.dotQuat(qoc, qs)
                 qos = self.dotQuat(q1s, qoff)
                 self.link_s.SetQuaternion(qos[0],qos[1],qos[2],qos[3])
                 self.link_s2.SetQuaternion(qo2[0],qo2[1],qo2[2],qo2[3])
 
-                #qh = [math.cos(theta[3]/2), 0, 0, math.sin(theta[3]/2)]
+                #qh = [math.cos(self.theta[3]/2), 0, 0, math.sin(self.theta[3]/2)]
                 #q1h = self.dotQuat(q1, qh)
-                qoh = self.dotQuat(q1, qoff)
-                self.hand.SetQuaternion(qoh[0],qoh[1],qoh[2],qoh[3])
+                
+                self.hand.SetQuaternion(qc1[0],qc1[1],qc1[2],qc1[3])
 
                 #self.finger[0].SetQuaternion(q1h[0],q1h[1],q1h[2],q1h[3])
 
@@ -626,23 +872,33 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.link_s.SetQuaternion(1,0,0,0)
                 self.link_s2.SetQuaternion(1,0,0,0)
 
-                self.link[1].Roll(theta[0]*180/math.pi)
+                self.link[1].Roll(self.theta[0]*180/math.pi)
 
-                self.link[2].Roll(theta[0]*180/math.pi)
-                self.link[2].Pitch(theta[1]*180/math.pi)
+                self.link[2].Roll(self.theta[0]*180/math.pi)
+                self.link[2].Pitch(self.theta[1]*180/math.pi)
 
-                self.link[3].Roll(theta[0]*180/math.pi)
-                self.link[3].Pitch(theta[1]*180/math.pi+theta[2]*180/math.pi)
+                self.link[3].Roll(self.theta[0]*180/math.pi)
+                self.link[3].Pitch(self.theta[1]*180/math.pi+self.theta[2]*180/math.pi)
 
-                self.link_s.Roll(theta[0]*180/math.pi)
-                self.link_s.Pitch(theta_s*180/math.pi)
+                self.link_s.Roll(self.theta[0]*180/math.pi)
+                self.link_s.Pitch(self.theta_s*180/math.pi)
 
-                self.link_s2.Roll(theta[0]*180/math.pi)
-                self.link_s2.Pitch(theta[1]*180/math.pi)"""
+                self.link_s2.Roll(self.theta[0]*180/math.pi)
+                self.link_s2.Pitch(self.theta[1]*180/math.pi)"""
 
                 
 
         def ogre_loop(self):
+                #self.crawlerPos[1] += 0.01*self.scale
+                #self.setCrawlerPos(self.crawlerPos, self.crawlerOri)
+                
+                if self._crawlerPosIn.isNew():
+                        data = self._crawlerPosIn.read()
+                        
+                        
+                        
+                        self.setCrawlerPos(numpy.array([data.data.position.x*self.scale, data.data.position.y*self.scale, self.clawlerlz/2.]),[0,0,data.data.heading])
+                        
                 if self.mode == RobotArmGUI.PointMode:
                         try:
                                 jp = self._ManipulatorCommonInterface_Common._ptr().getFeedbackPosJoint()
@@ -651,11 +907,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                                 lf = self.flen
                                 if self.gripFlag:
                                         lf = 0
-                                self.moveRobot(self.theta, lf)
+                                self.setPosition(self.theta, lf)
                         except:
                                 pass
                 #theta = [0.5, 0.5, 0]
-                #self.moveRobot(theta, 0.2)
+                #self.setPosition(theta, 0.2)
                 
 
         def Simloop(self):
@@ -675,7 +931,41 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         if self.gripFlag:
                                 lf = 0
                         self.theta[2] = self.theta[2] - self.theta[1]
-                        self.moveRobot(self.theta, lf)
+                        self.setPosition(self.theta, lf)
+
+        def updateTargetRot(self):
+                qcraw = self.getCrawlerQuat()
+                qt = [math.cos(self.targetPosition[3]/2), 0, 0, math.sin(self.targetPosition[3]/2)]
+                q = self.dotQuat(qcraw, qt)
+                self.targetPoint.SetQuaternion(q[0], q[1], q[2], q[3])
+
+        def writeClawlerSpeedData(self):
+                self._d_crawlerTargetSpeed0.data = 2*(self.RightSpeedSlider.GetSliderValue() - 0.5)
+                self._crawlerTargetSpeed0Out.write()
+
+                self._d_crawlerTargetSpeed1.data = 2*(self.LeftSpeedSlider.GetSliderValue() - 0.5)
+                self._crawlerTargetSpeed1Out.write()
+
+        def updateClawlerSpeed(self):
+                speed = self.speedSlider.GetSliderValue()
+                if self.crawlerState == CrawlerState.Forward:
+                        self.RightSpeedSlider.SetSliderValue(speed*0.5+0.5)
+                        self.LeftSpeedSlider.SetSliderValue(speed*0.5+0.5)
+                elif self.crawlerState == CrawlerState.Back:
+                        self.RightSpeedSlider.SetSliderValue(-speed*0.5+0.5)
+                        self.LeftSpeedSlider.SetSliderValue(-speed*0.5+0.5)
+                elif self.crawlerState == CrawlerState.Right:
+                        self.RightSpeedSlider.SetSliderValue(speed*0.5+0.5)
+                        self.LeftSpeedSlider.SetSliderValue(-speed*0.5+0.5)
+                elif self.crawlerState == CrawlerState.Left:
+                        self.RightSpeedSlider.SetSliderValue(-speed*0.5+0.5)
+                        self.LeftSpeedSlider.SetSliderValue(speed*0.5+0.5)
+                elif self.crawlerState == CrawlerState.Stop:
+                        self.RightSpeedSlider.SetSliderValue(0.5)
+                        self.LeftSpeedSlider.SetSliderValue(0.5)
+
+                self.writeClawlerSpeedData()
+
                 
 
         def CEGUICallback(self, fname):
@@ -683,10 +973,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 if fname == "targetButtonClicked":
                         
                         try:
-                                px = self.targetPosition[0]/self.scale
-                                py = self.targetPosition[1]/self.scale
-                                pz = self.targetPosition[2]/self.scale + self.limitZ/self.scale
-                                the = (-0.5 + self.st0.GetSliderValue())*math.pi
+                                P = self.getTargetPosInc()
+                                px = P[0]/self.scale
+                                py = P[1]/self.scale
+                                pz = P[2]/self.scale
+                                the = self.targetPosition[3]
                                 
                                 
                                 cp = JARA_ARM.CarPosWithElbow([[math.cos(the),-math.sin(the),0,px],[math.sin(the),math.cos(the),0,py],[0,0,1,pz]], 0, 0)
@@ -750,7 +1041,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 elif fname == "pt0sliderSliderChanged":
                         self.targetPosition[3] = (-0.5 + self.st0.GetSliderValue())*math.pi
-                        self.targetPoint.SetQuaternion(math.cos(self.targetPosition[3]/2), 0, 0, math.sin(self.targetPosition[3]/2))
+                        self.updateTargetRot()
+
+                        
 
                 elif fname == "j0sliderSliderChanged":
                         self.updateSliderJointAngle()
@@ -777,7 +1070,32 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                                               self.sj[i].SetSliderValue((self.theta[i]-self.softLowerLimit[i])/(self.softUpperLimit[i]-self.softLowerLimit[i]))
                                 self.mode = RobotArmGUI.JointMode
                                 self.JointButton.SetAlpha(1.0)
-                                
+
+
+                elif fname == "forwordButtonClicked":
+                        self.crawlerState = CrawlerState.Forward
+                        self.updateClawlerSpeed()
+                elif fname == "backButtonClicked":
+                        self.crawlerState = CrawlerState.Back
+                        self.updateClawlerSpeed()
+                elif fname == "rightButtonClicked":
+                        self.crawlerState = CrawlerState.Right
+                        self.updateClawlerSpeed()
+                elif fname == "leftButtonClicked":
+                        self.crawlerState = CrawlerState.Left
+                        self.updateClawlerSpeed()
+                elif fname == "speed0ButtonClicked":
+                        self.crawlerState = CrawlerState.Stop
+                        self.updateClawlerSpeed()
+                elif fname == "FreeButtonClicked":
+                        self.crawlerState = CrawlerState.Free
+                        self.updateClawlerSpeed()
+                elif fname == "speedSliderSliderChanged":
+                        self.updateClawlerSpeed()
+                elif fname == "LeftSpeedSliderSliderChanged":
+                        self.writeClawlerSpeedData()
+                elif fname == "RightSpeedSliderSliderChanged":
+                        self.writeClawlerSpeedData()
 
                         
 
