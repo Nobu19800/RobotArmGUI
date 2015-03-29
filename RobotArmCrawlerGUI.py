@@ -73,6 +73,9 @@ class CrawlerState:
 class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 	PointMode = 0
         JointMode = 1
+
+        ButtonMode = 0
+        SliderMode = 1
 	##
 	# @brief constructor
 	# @param manager Maneger Object
@@ -161,7 +164,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.targetSize = 0.01*self.scale
                 self.targetLimit = (self.l[2]+self.l[3])
-                self.limitZ = 0.02*self.scale
+                self.limitZ = 0.02*self.scale + self.clawlerlz
                 
                 self.targetPosition = [0, self.l[2], self.limitZ, 0]
 
@@ -188,6 +191,8 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.cameraZ = 550
 
                 self.crawlerState = CrawlerState.Stop
+
+                self.moveMode = RobotArmGUI.ButtonMode
                 
 
                 
@@ -421,18 +426,23 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
 
                 l = 0.3
-                w = 0.03
+                w = 0.025
                 x = 0
                 y = 0.97 - l
 
-                tl_h = l/6
+                tl_h = l/8
+
+                self.moveModeButton = OgreRTS.OgreObj.CreateButton("moveModeButton")
+                self.moveModeButton.SetText("ボタン入力で反映")
+                self.moveModeButton.SetPosition(0, y-tl_h*2)
+                self.moveModeButton.SetSize(w*12, tl_h)
 
                 self.targetButton = OgreRTS.OgreObj.CreateButton("targetButton")
                 self.targetButton.SetText("目標位置")
                 self.targetButton.SetPosition(0, y-tl_h)
                 self.targetButton.SetSize(w*6, tl_h)
 
-                self.targetButton.SetFontSize(15)
+                self.targetButton.SetFontSize(12)
                            
                 self.slx = OgreRTS.OgreObj.CreateSlider("pxslider")
                 self.sly = OgreRTS.OgreObj.CreateSlider("pyslider")
@@ -504,39 +514,41 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.stopButton.SetPosition(w*12, y+tl_h*4)
                 self.stopButton.SetSize(w*6, tl_h)
 
+                
+
                 self.serboONButton = OgreRTS.OgreObj.CreateButton("serboONButton")
                 self.serboONButton.SetText("サーボON")
-                self.serboONButton.SetPosition(w*18, y-tl_h)
+                self.serboONButton.SetPosition(w*12, y+tl_h*5)
                 self.serboONButton.SetSize(w*6, tl_h)
 
                 self.serboOFFButton = OgreRTS.OgreObj.CreateButton("serboOFFButton")
                 self.serboOFFButton.SetText("サーボOFF")
-                self.serboOFFButton.SetPosition(w*18, y)
+                self.serboOFFButton.SetPosition(w*12, y+tl_h*6)
                 self.serboOFFButton.SetSize(w*6, tl_h)
 
                 self.forwordButton = OgreRTS.OgreObj.CreateButton("forwordButton")
                 self.forwordButton.SetText("前進")
-                self.forwordButton.SetPosition(w*18, y+tl_h)
+                self.forwordButton.SetPosition(w*18, y-tl_h)
                 self.forwordButton.SetSize(w*6, tl_h)
 
                 self.backButton = OgreRTS.OgreObj.CreateButton("backButton")
                 self.backButton.SetText("後退")
-                self.backButton.SetPosition(w*18, y+tl_h*2)
+                self.backButton.SetPosition(w*18, y)
                 self.backButton.SetSize(w*6, tl_h)
 
                 self.rightButton = OgreRTS.OgreObj.CreateButton("rightButton")
                 self.rightButton.SetText("右旋回")
-                self.rightButton.SetPosition(w*18, y+tl_h*3)
+                self.rightButton.SetPosition(w*18, y+tl_h)
                 self.rightButton.SetSize(w*6, tl_h)
 
                 self.leftButton = OgreRTS.OgreObj.CreateButton("leftButton")
                 self.leftButton.SetText("左旋回")
-                self.leftButton.SetPosition(w*18, y+tl_h*4)
+                self.leftButton.SetPosition(w*18, y+tl_h*2)
                 self.leftButton.SetSize(w*6, tl_h)
 
                 self.speed0Button = OgreRTS.OgreObj.CreateButton("speed0Button")
                 self.speed0Button.SetText("速度0")
-                self.speed0Button.SetPosition(w*18, y+tl_h*5)
+                self.speed0Button.SetPosition(w*18, y+tl_h*3)
                 self.speed0Button.SetSize(w*6, tl_h)
 
                 self.FreeButton = OgreRTS.OgreObj.CreateButton("FreeButton")
@@ -923,6 +935,13 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
         def testClicked(self):
               print 334
 
+        def inputTargetJointAngle(self):
+                try:
+                        self._ManipulatorCommonInterface_Middle._ptr().movePTPJointAbs(self.theta)
+                except:
+                        pass
+                
+
         def updateSliderJointAngle(self):
                 if self.mode == RobotArmGUI.JointMode:
                         for i in range(0, 4):
@@ -932,6 +951,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                                 lf = 0
                         self.theta[2] = self.theta[2] - self.theta[1]
                         self.setPosition(self.theta, lf)
+
+                        if self.moveMode == RobotArmGUI.SliderMode:
+                                self.inputTargetJointAngle()
+                                
 
         def updateTargetRot(self):
                 qcraw = self.getCrawlerQuat()
@@ -966,25 +989,31 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.writeClawlerSpeedData()
 
+        def updateTargetPosition(self):
+                self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                if self.moveMode == RobotArmGUI.SliderMode and self.mode == RobotArmGUI.PointMode:
+                        self.inputTargetPosition()
+                        
+        def inputTargetPosition(self):
+                try:
+                        P = self.getTargetPosInc()
+                        px = P[0]/self.scale
+                        py = P[1]/self.scale
+                        pz = P[2]/self.scale
+                        the = self.targetPosition[3]
+                                
+                                
+                        cp = JARA_ARM.CarPosWithElbow([[math.cos(the),-math.sin(the),0,px],[math.sin(the),math.cos(the),0,py],[0,0,1,pz]], 0, 0)
+                        self._ManipulatorCommonInterface_Middle._ptr().moveLinearCartesianAbs(cp)
+                        self.mode = RobotArmGUI.PointMode
+                except:
+                        pass 
                 
 
         def CEGUICallback(self, fname):
                 print fname
                 if fname == "targetButtonClicked":
-                        
-                        try:
-                                P = self.getTargetPosInc()
-                                px = P[0]/self.scale
-                                py = P[1]/self.scale
-                                pz = P[2]/self.scale
-                                the = self.targetPosition[3]
-                                
-                                
-                                cp = JARA_ARM.CarPosWithElbow([[math.cos(the),-math.sin(the),0,px],[math.sin(the),math.cos(the),0,py],[0,0,1,pz]], 0, 0)
-                                self._ManipulatorCommonInterface_Middle._ptr().moveLinearCartesianAbs(cp)
-                                self.mode = RobotArmGUI.PointMode
-                        except:
-                                pass
+                        self.inputTargetPosition()
 
                 elif fname == "closeGripperButtonClicked":
                         try:
@@ -1030,18 +1059,19 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 elif fname == "pxsliderSliderChanged":
                         self.targetPosition[0] = (-0.5 + self.slx.GetSliderValue()) * self.targetLimit*2
-                        self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                        self.updateTargetPosition()
                         
                 elif fname == "pysliderSliderChanged":
                         self.targetPosition[1] = (self.sly.GetSliderValue()) * self.targetLimit
-                        self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                        self.updateTargetPosition()
                 elif fname == "pzsliderSliderChanged":
                         self.targetPosition[2] = self.slz.GetSliderValue() * self.targetLimit + self.limitZ
-                        self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                        self.updateTargetPosition()
 
                 elif fname == "pt0sliderSliderChanged":
                         self.targetPosition[3] = (-0.5 + self.st0.GetSliderValue())*math.pi
                         self.updateTargetRot()
+                        self.updateTargetPosition()
 
                         
 
@@ -1056,12 +1086,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 elif fname == "jointButtonClicked":
                         if self.mode == RobotArmGUI.JointMode:
-                                try:
-                                        self._ManipulatorCommonInterface_Middle._ptr().movePTPJointAbs(self.theta)
-                                except:
-                                        pass
+                                self.inputTargetJointAngle()
                                 self.mode = RobotArmGUI.PointMode
                                 self.JointButton.SetAlpha(0.5)
+                                
                         else:
                                 for i in range(0, 4):
                                       if i == 2:
@@ -1096,6 +1124,16 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         self.writeClawlerSpeedData()
                 elif fname == "RightSpeedSliderSliderChanged":
                         self.writeClawlerSpeedData()
+
+                elif fname == "moveModeButtonClicked":
+                        if self.moveMode == RobotArmGUI.ButtonMode:
+                                self.moveMode = RobotArmGUI.SliderMode
+                                self.moveModeButton.SetText("スライダー入力で反映")
+                        else:
+                                self.moveMode = RobotArmGUI.ButtonMode
+                                self.moveModeButton.SetText("ボタン入力で反映")
+                        
+                        
 
                         
 
