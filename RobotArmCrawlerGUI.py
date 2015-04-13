@@ -133,10 +133,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.clawlerlx = 0.105*self.scale
                 self.clawlerly = 0.171*self.scale
-                self.clawlerlz = 0.056*self.scale
+                self.clawlerlz = 0.065*self.scale
                 
 
-                self.armOffset = numpy.array([0, 0, self.clawlerlz/2.])
+                self.armOffset = numpy.array([0, -0.04*self.scale, self.clawlerlz/2.])
 
                 self.lv = [0, 0, 0, 0]
                 self.lv[0] = numpy.array([0, 0, self.l[0]])
@@ -164,7 +164,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self.targetSize = 0.01*self.scale
                 self.targetLimit = (self.l[2]+self.l[3])
-                self.limitZ = 0.02*self.scale + self.clawlerlz
+                self.limitZ = 0.02*self.scale
                 
                 self.targetPosition = [0, self.l[2], self.limitZ, 0]
 
@@ -183,12 +183,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 #self.crawlerPos = numpy.array([self.scale*0.1, self.scale*0.1, 0.])
                 #self.crawlerOri = [0., 0., math.pi/4]
-                self.crawlerPos = numpy.array([0., 0., self.clawlerlz/2])
+                self.crawlerPos = numpy.array([0, 0, self.clawlerlz/2])
                 self.crawlerOri = [0., 0., 0]
 
-                self.cameraX = 650
-                self.cameraY = 200
-                self.cameraZ = 550
+                self.cameraX_offset = 650
+                self.cameraY_offset = 200
+                self.cameraZ_offset = 550
+
+                self.cameraX = 0
+                self.cameraY = 0
+                self.cameraZ = 0
+                        
 
                 self.crawlerState = CrawlerState.Stop
 
@@ -615,8 +620,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.hand = OgreRTS.OgreObj.CreateBody("hand","Linkh.mesh")
                 self.hand.SetScale(self.scale/10, self.scale/10, self.scale/10)
 
-                self.crawler = OgreRTS.OgreObj.CreateBody("crawler","ODEBox.mesh")
-                self.crawler.SetScale(self.clawlerlx, self.clawlerly, self.clawlerlz)
+                self.crawler = OgreRTS.OgreObj.CreateBody("crawler","clawler.mesh")
+                self.crawler.SetScale(self.scale/10, self.scale/10, self.scale/10)
+                #self.crawler.SetScale(self.clawlerlx, self.clawlerly, self.clawlerlz)
 
                 #self.finger[0] = OgreRTS.OgreObj.CreateBody("finger1","ODEBox.mesh")
                 #self.finger[0].SetScale(self.wf, self.wf, self.lf)
@@ -626,7 +632,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 OgreRTS.OgreObj.SetFloor("ground", "groundh", "Examples/GrassFloor", 5000, 2)                
                 OgreRTS.OgreObj.SetSkyBox("Examples/TrippySkyBox", 10000)
-                OgreRTS.OgreObj.SetCameraPosition(self.cameraX, self.cameraY, self.cameraZ)
+                OgreRTS.OgreObj.SetCameraPosition(self.cameraX+self.cameraX_offset, self.cameraY+self.cameraY_offset, self.cameraZ+self.cameraZ_offset)
                 OgreRTS.OgreObj.SetCameraRotation(90, 45, 0)
                 OgreRTS.OgreObj.SetLightPosition(0, 0, 3000)
 
@@ -635,24 +641,14 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.targetPoint.SetScale(self.targetSize, self.targetSize, self.targetSize)
                 self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
                 
-                self.updateTargetRot()
+                self.updateTargetPosition()
 
                 OgreRTS.OgreObj.setEColor(self.targetPoint, 1, 0, 0, 1)
 
                 
                 self.setPosition(self.theta, 0.2)
 
-        def getTargetPosInc(self):
-                E = self.getCrawlerRot()
-                Einv = numpy.linalg.inv(E)
-                tp = numpy.array([self.targetPosition[0], self.targetPosition[1], self.targetPosition[2]])
-                P = numpy.dot(Einv, tp)
-
-                P[0] = P[0] - self.crawlerPos[0]
-                P[1] = P[1] - self.crawlerPos[1]
-                P[2] = P[2] - self.crawlerPos[2]
-
-                return P
+        
 
 
                 
@@ -728,8 +724,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
 
                 self.moveRobot()
+                self.updateTargetPosition()
 
-                OgreRTS.OgreObj.SetCameraPosition(self.cameraX+self.crawlerPos[0], self.cameraY+self.crawlerPos[1], self.cameraZ+self.crawlerPos[2])
+                
 
         
               
@@ -854,7 +851,9 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 q3 = [math.cos(self.theta[2]/2), math.sin(self.theta[2]/2), 0, 0]
                 qs = [math.cos(theta_s/2), math.sin(theta_s/2), 0, 0]
                 qco = self.dotQuat(qcraw, qoff)
-                self.crawler.SetQuaternion(qcraw[0],qcraw[1],qcraw[2],qcraw[3])
+                qcoffset = [math.cos(math.pi/4), 0, math.sin(math.pi/4), 0]
+                qcori = self.dotQuat(qco, qcoffset)
+                self.crawler.SetQuaternion(qcori[0],qcori[1],qcori[2],qcori[3])
                 self.link[0].SetQuaternion(qco[0],qco[1],qco[2],qco[3])
                 qoc = self.dotQuat(qcraw, q1)
                 qc1 = self.dotQuat(qoc, qoff)
@@ -901,8 +900,17 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
 
         def ogre_loop(self):
-                #self.crawlerPos[1] += 0.01*self.scale
-                #self.setCrawlerPos(self.crawlerPos, self.crawlerOri)
+                r = 0.1
+                self.cameraX = (1-r)*self.cameraX + r*self.crawlerPos[0]
+                self.cameraY = (1-r)*self.cameraY + r*self.crawlerPos[1]
+                self.cameraZ = (1-r)*self.cameraZ + r*self.crawlerPos[2]
+                OgreRTS.OgreObj.SetCameraPosition(self.cameraX+self.cameraX_offset, self.cameraY+self.cameraY_offset, self.cameraZ+self.cameraZ_offset)
+                
+                if self.crawlerState == CrawlerState.Forward:
+                        self.crawlerPos[1] += 0.01*self.scale
+                elif self.crawlerState == CrawlerState.Back:
+                        self.crawlerPos[1] -= 0.01*self.scale
+                self.setCrawlerPos(self.crawlerPos, self.crawlerOri)
                 
                 if self._crawlerPosIn.isNew():
                         data = self._crawlerPosIn.read()
@@ -990,16 +998,21 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.writeClawlerSpeedData()
 
         def updateTargetPosition(self):
-                self.targetPoint.SetPosition(self.targetPosition[0],self.targetPosition[1],self.targetPosition[2])
+                E = self.getCrawlerRot()
+                #Einv = numpy.linalg.inv(E)
+                tp = numpy.array([self.targetPosition[0]+self.armOffset[0], self.targetPosition[1]+self.armOffset[1], self.targetPosition[2]+self.armOffset[2]])
+                P = numpy.dot(E, tp)
+                self.targetPoint.SetPosition(P[0]+self.crawlerPos[0],P[1]+self.crawlerPos[1],P[2]+self.crawlerPos[2])
+                self.updateTargetRot()
                 if self.moveMode == RobotArmGUI.SliderMode and self.mode == RobotArmGUI.PointMode:
                         self.inputTargetPosition()
                         
         def inputTargetPosition(self):
                 try:
                         P = self.getTargetPosInc()
-                        px = P[0]/self.scale
-                        py = P[1]/self.scale
-                        pz = P[2]/self.scale
+                        px = self.targetPosition[0]/self.scale
+                        py = self.targetPosition[1]/self.scale
+                        pz = self.targetPosition[2]/self.scale
                         the = self.targetPosition[3]
                                 
                                 
@@ -1007,7 +1020,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         self._ManipulatorCommonInterface_Middle._ptr().moveLinearCartesianAbs(cp)
                         self.mode = RobotArmGUI.PointMode
                 except:
-                        pass 
+                        pass
+
+        
+                
+                
                 
 
         def CEGUICallback(self, fname):
@@ -1070,7 +1087,6 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 elif fname == "pt0sliderSliderChanged":
                         self.targetPosition[3] = (-0.5 + self.st0.GetSliderValue())*math.pi
-                        self.updateTargetRot()
                         self.updateTargetPosition()
 
                         
