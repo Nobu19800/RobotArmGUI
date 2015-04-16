@@ -906,11 +906,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.cameraZ = (1-r)*self.cameraZ + r*self.crawlerPos[2]
                 OgreRTS.OgreObj.SetCameraPosition(self.cameraX+self.cameraX_offset, self.cameraY+self.cameraY_offset, self.cameraZ+self.cameraZ_offset)
                 
-                if self.crawlerState == CrawlerState.Forward:
-                        self.crawlerPos[1] += 0.01*self.scale
-                elif self.crawlerState == CrawlerState.Back:
-                        self.crawlerPos[1] -= 0.01*self.scale
-                self.setCrawlerPos(self.crawlerPos, self.crawlerOri)
+                #if self.crawlerState == CrawlerState.Forward:
+                #        self.crawlerPos[1] += 0.01*self.scale
+                #elif self.crawlerState == CrawlerState.Back:
+                #        self.crawlerPos[1] -= 0.01*self.scale
+                #self.setCrawlerPos(self.crawlerPos, self.crawlerOri)
                 
                 if self._crawlerPosIn.isNew():
                         data = self._crawlerPosIn.read()
@@ -976,26 +976,45 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
                 self._d_crawlerTargetSpeed1.data = 2*(self.LeftSpeedSlider.GetSliderValue() - 0.5)
                 self._crawlerTargetSpeed1Out.write()
+        def writeClawlerSpeedDataSelf(self, v0, v1):
+                self._d_crawlerTargetSpeed1.data = v1
+                self._crawlerTargetSpeed1Out.write()
+                
+                self._d_crawlerTargetSpeed0.data = v0
+                self._crawlerTargetSpeed0Out.write()
 
+                
+                
         def updateClawlerSpeed(self):
                 speed = self.speedSlider.GetSliderValue()
                 if self.crawlerState == CrawlerState.Forward:
+                        #self.writeClawlerSpeedDataSelf(speed,speed)
                         self.RightSpeedSlider.SetSliderValue(speed*0.5+0.5)
                         self.LeftSpeedSlider.SetSliderValue(speed*0.5+0.5)
+                        
+                        
+                        
+                        
                 elif self.crawlerState == CrawlerState.Back:
+                        #self.writeClawlerSpeedDataSelf(-speed,-speed)
                         self.RightSpeedSlider.SetSliderValue(-speed*0.5+0.5)
                         self.LeftSpeedSlider.SetSliderValue(-speed*0.5+0.5)
+
+                        
                 elif self.crawlerState == CrawlerState.Right:
+                        #self.writeClawlerSpeedDataSelf(speed,-speed)
                         self.RightSpeedSlider.SetSliderValue(speed*0.5+0.5)
                         self.LeftSpeedSlider.SetSliderValue(-speed*0.5+0.5)
                 elif self.crawlerState == CrawlerState.Left:
+                        #self.writeClawlerSpeedDataSelf(-speed,speed)
                         self.RightSpeedSlider.SetSliderValue(-speed*0.5+0.5)
                         self.LeftSpeedSlider.SetSliderValue(speed*0.5+0.5)
                 elif self.crawlerState == CrawlerState.Stop:
+                        #self.writeClawlerSpeedDataSelf(0,0)
                         self.RightSpeedSlider.SetSliderValue(0.5)
                         self.LeftSpeedSlider.SetSliderValue(0.5)
 
-                self.writeClawlerSpeedData()
+                #self.writeClawlerSpeedData()
 
         def updateTargetPosition(self):
                 E = self.getCrawlerRot()
@@ -1009,15 +1028,19 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         
         def inputTargetPosition(self):
                 try:
-                        P = self.getTargetPosInc()
+                        
+                        
+                        
                         px = self.targetPosition[0]/self.scale
                         py = self.targetPosition[1]/self.scale
                         pz = self.targetPosition[2]/self.scale
                         the = self.targetPosition[3]
                                 
-                                
+                        
                         cp = JARA_ARM.CarPosWithElbow([[math.cos(the),-math.sin(the),0,px],[math.sin(the),math.cos(the),0,py],[0,0,1,pz]], 0, 0)
+                        
                         self._ManipulatorCommonInterface_Middle._ptr().moveLinearCartesianAbs(cp)
+                        
                         self.mode = RobotArmGUI.PointMode
                 except:
                         pass
