@@ -1,0 +1,3 @@
+﻿
+OgreRTC ..\RobotArmCrawlerGUI.py
+pause
