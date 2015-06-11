@@ -1,3 +1,3 @@
 cd /d %~dp0
-start python startNamingService.py
+cmd /c python startNamingService.py
 OgreRTC RobotArmCrawlerGUI.py

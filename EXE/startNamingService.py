@@ -2,20 +2,26 @@
 # -*- Python -*-
 # -*- coding: utf-8 -*-
 
-import datetime
+import time
 
 import sys,os,platform
 import subprocess
-import rtctree.tree
+#import rtctree.tree
+from omniORB import CORBA, PortableServer
+from OpenRTM_aist import CorbaNaming
+
+
 
 
 try:
-    tree = rtctree.tree.RTCTree("localhost")
-    print tree
+    orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
+    namingserver = CorbaNaming(orb, "localhost")
 except:
     if os.name == 'posix':
-        subprocess.Popen("rtm-naming".split(" "))
+        subprocess.Popen("rtm-naming&".split(" "),shell=True)
     elif os.name == 'nt':
-        subprocess.Popen("cmd /c rtm-naming.bat")
+        subprocess.Popen("start rtm-naming", shell=True)
+
+    time.sleep(3)
     
 
