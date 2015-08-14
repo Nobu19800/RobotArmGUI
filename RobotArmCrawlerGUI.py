@@ -13,6 +13,9 @@ import sys
 import time
 sys.path.append(".")
 
+
+
+
 # Import RTM module
 import RTC
 import OpenRTM_aist
@@ -314,7 +317,8 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		#
 		#
 	def onDeactivated(self, ec_id):
-	
+		self.RightSpeedSlider.SetSliderValue(0.5)
+		self.LeftSpeedSlider.SetSliderValue(0.5)
 		return RTC.RTC_OK
 	
 		##
@@ -428,6 +432,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 return ans
 
         def ogre_init(self):
+                self.CrawlerExist = True
                 OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
 
                 l = 0.3
@@ -531,6 +536,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.serboOFFButton.SetPosition(w*12, y+tl_h*6)
                 self.serboOFFButton.SetSize(w*6, tl_h)
 
+                self.crawlerExistButton = OgreRTS.OgreObj.CreateButton("crawlerExistButton")
+                self.crawlerExistButton.SetText("クローラー非表示")
+                self.crawlerExistButton.SetPosition(w*12, y+tl_h*6)
+                self.crawlerExistButton.SetSize(w*6, tl_h)
+
                 self.forwordButton = OgreRTS.OgreObj.CreateButton("forwordButton")
                 self.forwordButton.SetText("前進")
                 self.forwordButton.SetPosition(w*18, y-tl_h)
@@ -566,6 +576,8 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 self.speedText.SetText("速度")
                 self.speedText.SetPosition(w*24, y)
                 self.speedText.SetSize(w*3, tl_h)
+
+
 
                 self.speedSlider = OgreRTS.OgreObj.CreateSlider("speedSlider")
                 
@@ -786,7 +798,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 R[1] = numpy.dot(R[0], E[1])
                 R[2] = numpy.dot(R[1],E[2])
 
+                
+
                 po = self.crawlerPos + numpy.dot(Ecl, self.armOffset)
+
 
                 pt = [0, 0, 0, 0]
 
@@ -1014,7 +1029,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                         self.RightSpeedSlider.SetSliderValue(0.5)
                         self.LeftSpeedSlider.SetSliderValue(0.5)
 
-                #self.writeClawlerSpeedData()
+                self.writeClawlerSpeedData()
 
         def updateTargetPosition(self):
                 E = self.getCrawlerRot()
@@ -1049,6 +1064,25 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                 
                 
                 
+        def setClawlerExist(self, e):
+                self.CrawlerExist = e
+                if e:
+                        self.setCrawlerPos(numpy.array([0, 0, self.clawlerlz/2]),[0,0,0])
+                else:
+                        self.setCrawlerPos(numpy.array([0, 0, -self.clawlerlz/2]),[0,0,0])
+                self.crawler.SetVisible(e)
+                self.forwordButton.SetVisible(e)
+                self.backButton.SetVisible(e)
+                self.rightButton.SetVisible(e)
+                self.leftButton.SetVisible(e)
+                self.speed0Button.SetVisible(e)
+                self.FreeButton.SetVisible(e)
+                self.speedText.SetVisible(e)
+                self.speedSlider.SetVisible(e)
+                self.rightSpeedText.SetVisible(e)
+                self.RightSpeedSlider.SetVisible(e)
+                self.LeftSpeedText.SetVisible(e)
+                self.LeftSpeedSlider.SetVisible(e)
 
         def CEGUICallback(self, fname):
                 print fname
@@ -1173,7 +1207,13 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
                                 self.moveModeButton.SetText("ボタン入力で反映")
                         
                         
-
+                elif fname == "crawlerExistButtonClicked":
+                        if self.CrawlerExist:
+                                self.crawlerExistButton.SetText("クローラー表示")
+                                self.setClawlerExist(False)
+                        else:
+                                self.crawlerExistButton.SetText("クローラー非表示")
+                                self.setClawlerExist(True)
                         
 
                 
