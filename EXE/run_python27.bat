@@ -1,3 +1,3 @@
 cd /d %~dp0
 cmd /c python startNamingService.py
-OgreRTC ../RobotArmCrawlerGUI.py
+OgreRTC_Python27 ../RobotArmCrawlerGUI.py
