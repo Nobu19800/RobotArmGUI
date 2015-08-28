@@ -1,6 +1,10 @@
 #!/usr/bin/env python
-# -*- Python -*-
 # -*- coding: utf-8 -*-
+# -*- Python -*-
+
+##
+#   @file startNamingService.py
+#   @brief ネームサービス起動
 
 import time
 
@@ -11,19 +15,21 @@ from omniORB import CORBA, PortableServer
 from OpenRTM_aist import CorbaNaming
 
 
+##
+# @brief メイン関数
+def main():
 
+    try:
+        orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
+        namingserver = CorbaNaming(orb, "localhost")
+    except:
+        if os.name == 'posix':
+            subprocess.Popen("rtm-naming&".split(" "),shell=True)
+        elif os.name == 'nt':
+            subprocess.Popen("start rtm-naming", shell=True)
 
-try:
-    orb = CORBA.ORB_init(sys.argv, CORBA.ORB_ID)
-    namingserver = CorbaNaming(orb, "localhost")
-except:
-    if os.name == 'posix':
-        subprocess.Popen("rtm-naming&".split(" "),shell=True)
-    elif os.name == 'nt':
-        #print "start python " + '"' + os.path.join(os.environ["RTM_ROOT"],"bin/rtm-naming.py").replace("/","\\") + '"'
-        subprocess.Popen("start python " + '"' + os.path.join(os.environ["RTM_ROOT"],"bin/rtm-naming.py").replace("/","\\") + '"', shell=True)
-        #subprocess.Popen("start rtm-naming", shell=True)
-
-    time.sleep(3)
+        time.sleep(3)
     
 
+if __name__ == "__main__":
+    main()

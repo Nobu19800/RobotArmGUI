@@ -1,4 +1,9 @@
+#!/bin/env python
 # -*- coding: utf-8 -*-
+
+##
+#   @file OgreRTC.py
+#   @brief Ogre3D、CEGUIをRTCで操作する関数群
 
 import OpenRTM_aist
 import RTC
@@ -17,9 +22,9 @@ EndFlag = True
 
 
     
+
 ##
-#マネージャを立ち上げる関数
-##
+# @brief マネージャを立ち上げる関数
 def ManagerStart():
     OgreRTS.OgreObj = OgreObj
     OgreRTS.SimObj = SimulationObj
@@ -31,9 +36,9 @@ def ManagerStart():
     OgreRTS.mgr.activateManager()
     OgreRTS.mgr.runManager(True)
 
+
 ##
-#RTCを立ち上げる関数
-##
+# @brief RTCを立ち上げる関数
 def RTCStart(fName): 
     
     OgreRTS.m_comp = RTCInit(fName)
@@ -50,9 +55,9 @@ def RTCStart(fName):
     
     time.sleep(3)
     
+
 ##
-#RTCを停止する関数
-##
+# @brief RTCを停止する関数
 def RTCStop():
     
     global EndFlag
@@ -71,10 +76,10 @@ def RTCStop():
     
     #time.sleep(3)
 
-##
-#ファイルよりRTCを読み込む関数
-##
 
+##
+# @brief ファイルよりRTCを読み込む関数
+# @param fName ファイルパス
 def RTCInit(fName):
     
     dname = os.path.dirname(os.path.relpath(fName))
@@ -96,58 +101,66 @@ def RTCInit(fName):
         return MyCallBack.MyModuleInit(OgreRTS.mgr)
 
 
+
 ##
-#キーを押したときに呼び出されるコールバック関数
-##
+# @brief キーを押したときに呼び出されるコールバック関数
+# @param k キー
 def keyPressed(k):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.keyPressed(k)
+
 ##
-#キーを離したときに呼び出されるコールバック関数
-##
+# @brief キーを離したときに呼び出されるコールバック関数
+# @param k キー
 def keyReleased(k):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.keyReleased(k)
 
+
 ##
-#マウスを動かしたときに呼び出されるコールバック関数
-##
+# @brief マウスを動かしたときに呼び出されるコールバック関数
+# @param mx X座標
+# @param my Y座標
+# @param mdx 移動量(X)
+# @param mdy 移動量(Y)
 def mouseMoved(mx, my, mdx, mdy):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.mouseMoved(mx, my, mdx, mdy)
 
 
+
 ##
-#マウスのボタンを押したときに呼び出されるコールバック関数
-##
+# @brief マウスのボタンを押したときに呼び出されるコールバック関数
+# @param b ボタン
 def mousePressed(b):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.mousePressed(b)
 
 
+
 ##
-#マウスのボタンを離したときに呼び出されるコールバック関数
-##
+# @brief マウスのボタンを離したときに呼び出されるコールバック関数
+# @param b ボタン
 def mouseReleased(b):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.mouseReleased(b)
 
 
+
 ##
-#ファイル読み込み時に呼び出されるコールバック関数
-##
+# @brief ファイル読み込み時に呼び出されるコールバック関数
 def ogre_init():
     if OgreRTS.m_comp:
         OgreRTS.m_comp.ogre_init()
             
+
 ##
-#描画更新時に呼び出されるコールバック関数
-##
+# @brief 描画更新時に呼び出されるコールバック関数
 def ogre_loop():
     
     if OgreRTS.m_comp:
@@ -163,14 +176,19 @@ def Simloop():
         OgreRTS.m_comp.Simloop()
 
 
+
 ##
-#シミュレーションで接触が発生した時に呼び出されるコールバック関数
-##
+# @brief シミュレーションで接触が発生した時に呼び出されるコールバック関数
+# @param b1 ボディ1
+# @param b2 ボディ2
 def Contacthandler(b1, b2):
     
     if OgreRTS.m_comp:
         OgreRTS.m_comp.Contacthandler(b1, b2)
 
+##
+# @brief GUIのアクションに対するコールバック
+# @param fname コールバック名
 def CEGUICallback(fname):
     if OgreRTS.m_comp:
         OgreRTS.m_comp.CEGUICallback(fname)
