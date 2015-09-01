@@ -8,6 +8,9 @@
 
 
 """
+import SearchRTC
+
+
 import sys
 import time
 sys.path.append(".")
@@ -53,6 +56,9 @@ robotarmgui_spec = ["implementation_id", "RobotArmGUI",
 		 "language",          "Python", 
 		 "lang_type",         "SCRIPT",
 		 ""]
+
+
+
 
 ##
 # @class CrawlerState
@@ -204,11 +210,10 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.crawlerState = CrawlerState.Stop
 
 		self.moveMode = RobotArmGUI.ButtonMode
+		self.mgr = manager
 
 
-
-
-
+		
 		# initialize of configuration-data.
 		# <rtc-template block="init_conf_param">
 		
@@ -463,28 +468,20 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		return ans
 
 	##
-	# @brief 初期化時に呼び出される関数
+	# @brief アーム目標位置操作のスライダーを生成
 	# @param self
-	def ogre_init(self):
-		self.CrawlerExist = True
-		OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
-
-		l = 0.3
-		w = 0.025
-		x = 0
-		y = 0.97 - l
-
-		tl_h = l/8
-
+	def createTargetSlider(self, parentWindow, w, l, px, py):
 		self.moveModeButton = OgreRTS.OgreObj.CreateButton("moveModeButton")
 		self.moveModeButton.SetText("ボタン入力で反映")
-		self.moveModeButton.SetPosition(0, y-tl_h*2)
-		self.moveModeButton.SetSize(w*12, tl_h)
+		self.moveModeButton.SetPosition(px, py)
+		self.moveModeButton.SetSize(w*8.0, l)
+		self.moveModeButton.SetWindow(parentWindow)
 
 		self.targetButton = OgreRTS.OgreObj.CreateButton("targetButton")
 		self.targetButton.SetText("目標位置")
-		self.targetButton.SetPosition(0, y-tl_h)
-		self.targetButton.SetSize(w*6, tl_h)
+		self.targetButton.SetPosition(px, py+l)
+		self.targetButton.SetSize(w*4.0, l)
+		self.targetButton.SetWindow(parentWindow)
 
 		self.targetButton.SetFontSize(12)
 
@@ -492,25 +489,39 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.sly = OgreRTS.OgreObj.CreateSlider("pyslider")
 		self.slz = OgreRTS.OgreObj.CreateSlider("pzslider")
 		self.st0 = OgreRTS.OgreObj.CreateSlider("pt0slider")
-		self.slx.SetPosition(x+w/6., y)
-		self.sly.SetPosition(x+w*3./2.+w/6., y)
-		self.slz.SetPosition(x+w*6./2.+w/6., y)
-		self.st0.SetPosition(x+w*9./2.+w/6., y)
-		self.slx.SetSize(w, l)
-		self.sly.SetSize(w, l)
-		self.slz.SetSize(w, l)
-		self.st0.SetSize(w, l)
+		self.slx.SetPosition(px, py+l*2)
+		self.sly.SetPosition(px+w, py+l*2)
+		self.slz.SetPosition(px+w*2, py+l*2)
+		self.st0.SetPosition(px+w*3, py+l*2)
+		self.slx.SetSize(w, l*6)
+		self.sly.SetSize(w, l*6)
+		self.slz.SetSize(w, l*6)
+		self.st0.SetSize(w, l*6)
 
 		self.slx.SetSliderValue(0.5 + self.targetPosition[0]/self.targetLimit/2)
 		self.sly.SetSliderValue(self.targetPosition[1]/self.targetLimit)
 		self.slz.SetSliderValue((self.targetPosition[2]-self.limitZ)/(self.targetLimit-self.limitZ))
-		self.st0.SetSliderValue(0.5);
+		self.st0.SetSliderValue(0.5)
 
+		self.slx.SetWindow(parentWindow)
+		self.sly.SetWindow(parentWindow)
+		self.slz.SetWindow(parentWindow)
+		self.st0.SetWindow(parentWindow)
+
+	##
+	# @brief アーム目標関節角度操作のスライダーを生成
+	# @param self
+	# @param w 幅
+	# @param l 高さ
+	# @param px 位置(X)
+	# @param py 位置(Y)
+	def createAngleSlider(self, parentWindow, w, l, px, py):
 		self.JointButton = OgreRTS.OgreObj.CreateButton("jointButton")
 		self.JointButton.SetText("目標角度")
-		self.JointButton.SetPosition(w*6, y-tl_h)
-		self.JointButton.SetSize(w*6, tl_h)
+		self.JointButton.SetPosition(px, py)
+		self.JointButton.SetSize(w*4.0, l)
 		self.JointButton.SetAlpha(0.5)
+		self.JointButton.SetWindow(parentWindow)
 
 		self.sj = [None, None, None, None]
 		self.sj[0] = OgreRTS.OgreObj.CreateSlider("j0slider")
@@ -518,135 +529,244 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.sj[2] = OgreRTS.OgreObj.CreateSlider("j2slider")
 		self.sj[3] = OgreRTS.OgreObj.CreateSlider("j3slider")
 		for i in range(0, 4):
-			self.sj[i].SetPosition(x+w*3./2.*i+w*12./2.+w/6., y)
-			self.sj[i].SetSize(w, l)
+			self.sj[i].SetPosition(px+w*i,py+l)
+			self.sj[i].SetSize(w, l*6.0)
 			if i == 2:
 				self.sj[2].SetSliderValue((self.theta[2]+self.theta[1]-self.softLowerLimit[2])/(self.softUpperLimit[2]-self.softLowerLimit[2]))
 			else:
 				self.sj[i].SetSliderValue((self.theta[i]-self.softLowerLimit[i])/(self.softUpperLimit[i]-self.softLowerLimit[i]))
+				
+			self.sj[i].SetWindow(parentWindow)
+	##
+	# @brief メッセージ表示ウインドウを表示
+	# @param self
+	# @param mes 表示する文字列
+	def setMessageWindow(self, mes):
+		self.messageWindow.SetVisible(True)
+		self.messageTextBox.SetText(mes)
+		self.messageWindow.moveToFront()
+	##
+	# @brief メッセージ表示ウインドウを生成
+	# @param self
+	def createMessageWindow(self):
+		self.messageWindow = OgreRTS.OgreObj.CreateStaticImage("messageWindow")
+		self.messageWindow.SetPosition(0.2, 0.0)
+		self.messageWindow.SetSize(0.6, 0.6)
+		self.messageWindow.SetVisible(False)
 
+		self.messageTextBox = OgreRTS.OgreObj.CreateStaticText("messageTextBox")
+		self.messageTextBox.SetText("")
+		self.messageTextBox.SetPosition(0.0, 0.0)
+		self.messageTextBox.SetSize(1.0, 0.9)
+		self.messageTextBox.SetWindow(self.messageWindow)
 
+		self.messageWindowButton = OgreRTS.OgreObj.CreateButton("messageWindowButton")
+		self.messageWindowButton.SetText("ウインドウを閉じる")
+		self.messageWindowButton.SetPosition(0.0, 0.9)
+		self.messageWindowButton.SetSize(1.0, 0.1)
+		self.messageWindowButton.SetWindow(self.messageWindow)
 
+	##
+	# @brief 接続設定ウインドウを生成
+	# @param self
+	def createConnectWindow(self):
+		
+
+		self.connectWindow = OgreRTS.OgreObj.CreateStaticImage("connectWindow")
+		self.connectWindow.SetPosition(0.2, 0.2)
+		self.connectWindow.SetSize(0.6, 0.3)
+		self.connectWindow.SetVisible(False)
+
+		self.connectEditBox = OgreRTS.OgreObj.CreateEditBox("connectEditBox")
+		self.connectEditBox.SetText("localhost")
+		self.connectEditBox.SetPosition(0.0, 0.0)
+		self.connectEditBox.SetSize(1.0, 0.4)
+		self.connectEditBox.SetWindow(self.connectWindow)
+
+		self.startConnectButton = OgreRTS.OgreObj.CreateButton("startConnectButton")
+		self.startConnectButton.SetText("通信開始")
+		self.startConnectButton.SetPosition(0.0, 0.4)
+		self.startConnectButton.SetSize(1.0, 0.3)
+		self.startConnectButton.SetWindow(self.connectWindow)
+
+		self.unVisibleConnectWindowButton = OgreRTS.OgreObj.CreateButton("unVisibleConnectWindowButton")
+		self.unVisibleConnectWindowButton.SetText("ウインドウを閉じる")
+		self.unVisibleConnectWindowButton.SetPosition(0.0, 0.7)
+		self.unVisibleConnectWindowButton.SetSize(1.0, 0.3)
+		self.unVisibleConnectWindowButton.SetWindow(self.connectWindow)
+
+	##
+	# @brief アーム操作ウインドウを生成
+	# @param self
+	# @param w 幅
+	# @param l 高さ
+	# @param px 位置(X)
+	# @param py 位置(Y)
+	def createArmWindow(self, parentWindow, w, l, px, py):
+		self.connectButton = OgreRTS.OgreObj.CreateButton("connectButton")
+		self.connectButton.SetText("通信設定ウインドウ表示")
+		
+		self.connectButton.SetPosition(px, py)
+		self.connectButton.SetSize(w, l)
+		self.connectButton.SetWindow(parentWindow)
+		
 		self.closeGripperButton = OgreRTS.OgreObj.CreateButton("closeGripperButton")
 		self.closeGripperButton.SetText("ハンドを閉じる")
-		self.closeGripperButton.SetPosition(w*12, y-tl_h)
-		self.closeGripperButton.SetSize(w*6, tl_h)
+		self.closeGripperButton.SetPosition(px, py+l)
+		self.closeGripperButton.SetSize(w, l)
+		self.closeGripperButton.SetWindow(parentWindow)
 
 		self.openGripperButton = OgreRTS.OgreObj.CreateButton("openGripperButton")
 		self.openGripperButton.SetText("ハンドを開く")
-		self.openGripperButton.SetPosition(w*12, y)
-		self.openGripperButton.SetSize(w*6, tl_h)
+		self.openGripperButton.SetPosition(px, py+l*2)
+		self.openGripperButton.SetSize(w, l)
+		self.openGripperButton.SetWindow(parentWindow)
 
 		self.goHomeButton = OgreRTS.OgreObj.CreateButton("goHomeButton")
 		self.goHomeButton.SetText("初期位置へ移動")
-		self.goHomeButton.SetPosition(w*12, y+tl_h)
-		self.goHomeButton.SetSize(w*6, tl_h)
+		self.goHomeButton.SetPosition(px, py+l*3)
+		self.goHomeButton.SetSize(w, l)
+		self.goHomeButton.SetWindow(parentWindow)
 
 		self.resumeButton = OgreRTS.OgreObj.CreateButton("resumeButton")
 		self.resumeButton.SetText("再開")
-		self.resumeButton.SetPosition(w*12, y+tl_h*2)
-		self.resumeButton.SetSize(w*6, tl_h)
+		self.resumeButton.SetPosition(px, py+l*4)
+		self.resumeButton.SetSize(w, l)
+		self.resumeButton.SetWindow(parentWindow)
 
 		self.pauseButton = OgreRTS.OgreObj.CreateButton("pauseButton")
 		self.pauseButton.SetText("一時停止")
-		self.pauseButton.SetPosition(w*12, y+tl_h*3)
-		self.pauseButton.SetSize(w*6, tl_h)
+		self.pauseButton.SetPosition(px, py+l*5)
+		self.pauseButton.SetSize(w, l)
+		self.pauseButton.SetWindow(parentWindow)
 
 		self.stopButton = OgreRTS.OgreObj.CreateButton("stopButton")
 		self.stopButton.SetText("停止")
-		self.stopButton.SetPosition(w*12, y+tl_h*4)
-		self.stopButton.SetSize(w*6, tl_h)
+		self.stopButton.SetPosition(px, py+l*6)
+		self.stopButton.SetSize(w, l)
+		self.stopButton.SetWindow(parentWindow)
 
                 
 
 		self.serboONButton = OgreRTS.OgreObj.CreateButton("serboONButton")
 		self.serboONButton.SetText("サーボON")
-		self.serboONButton.SetPosition(w*12, y+tl_h*5)
-		self.serboONButton.SetSize(w*6, tl_h)
+		self.serboONButton.SetPosition(px, py+l*7)
+		self.serboONButton.SetSize(w, l)
+		self.serboONButton.SetWindow(parentWindow)
 
 		self.serboOFFButton = OgreRTS.OgreObj.CreateButton("serboOFFButton")
 		self.serboOFFButton.SetText("サーボOFF")
-		self.serboOFFButton.SetPosition(w*12, y+tl_h*6)
-		self.serboOFFButton.SetSize(w*6, tl_h)
+		self.serboOFFButton.SetPosition(px, py+l*8)
+		self.serboOFFButton.SetSize(w, l)
+		self.serboOFFButton.SetWindow(parentWindow)
 
 		self.crawlerExistButton = OgreRTS.OgreObj.CreateButton("crawlerExistButton")
 		self.crawlerExistButton.SetText("クローラー非表示")
-		self.crawlerExistButton.SetPosition(w*12, y+tl_h*6)
-		self.crawlerExistButton.SetSize(w*6, tl_h)
+		self.crawlerExistButton.SetPosition(px, py+l*8)
+		self.crawlerExistButton.SetSize(w, l)
+		self.crawlerExistButton.SetWindow(parentWindow)
+
+	##
+	# @brief クローラー操作ウインドウを生成
+	# @param self
+	# @param w 幅
+	# @param l 高さ
+	# @param px 位置(X)
+	# @param py 位置(Y)
+	def createCrawlerWindow(self, parentWindow, w, l, px, py):
+		
 
 		self.forwordButton = OgreRTS.OgreObj.CreateButton("forwordButton")
 		self.forwordButton.SetText("前進")
-		self.forwordButton.SetPosition(w*18, y-tl_h)
-		self.forwordButton.SetSize(w*6, tl_h)
+		self.forwordButton.SetPosition(px,py)
+		self.forwordButton.SetSize(w, l)
+		self.forwordButton.SetWindow(parentWindow)
 
 		self.backButton = OgreRTS.OgreObj.CreateButton("backButton")
 		self.backButton.SetText("後退")
-		self.backButton.SetPosition(w*18, y)
-		self.backButton.SetSize(w*6, tl_h)
+		self.backButton.SetPosition(px,py+l)
+		self.backButton.SetSize(w, l)
+		self.backButton.SetWindow(parentWindow)
 
 		self.rightButton = OgreRTS.OgreObj.CreateButton("rightButton")
 		self.rightButton.SetText("右旋回")
-		self.rightButton.SetPosition(w*18, y+tl_h)
-		self.rightButton.SetSize(w*6, tl_h)
+		self.rightButton.SetPosition(px, py+l*2)
+		self.rightButton.SetSize(w, l)
+		self.rightButton.SetWindow(parentWindow)
 
 		self.leftButton = OgreRTS.OgreObj.CreateButton("leftButton")
 		self.leftButton.SetText("左旋回")
-		self.leftButton.SetPosition(w*18, y+tl_h*2)
-		self.leftButton.SetSize(w*6, tl_h)
+		self.leftButton.SetPosition(px, py+l*3)
+		self.leftButton.SetSize(w, l)
+		self.leftButton.SetWindow(parentWindow)
 
 		self.speed0Button = OgreRTS.OgreObj.CreateButton("speed0Button")
 		self.speed0Button.SetText("速度0")
-		self.speed0Button.SetPosition(w*18, y+tl_h*3)
-		self.speed0Button.SetSize(w*6, tl_h)
+		self.speed0Button.SetPosition(px, py+l*4)
+		self.speed0Button.SetSize(w, l)
+		self.speed0Button.SetWindow(parentWindow)
 
 		self.FreeButton = OgreRTS.OgreObj.CreateButton("FreeButton")
 		self.FreeButton.SetText("スライダーでの操作")
-		self.FreeButton.SetPosition(w*24, y-tl_h)
-		self.FreeButton.SetSize(w*9, tl_h)
+		self.FreeButton.SetPosition(px, py+l*5)
+		self.FreeButton.SetSize(w, l)
+		self.FreeButton.SetWindow(parentWindow)
 
-
+	##
+	# @brief クローラー操作スライダーを生成
+	# @param self
+	# @param w 幅
+	# @param l 高さ
+	# @param px 位置(X)
+	# @param py 位置(Y)
+	def createCrawlerSlider(self, parentWindow, w, l, px, py):
 		self.speedText = OgreRTS.OgreObj.CreateStaticText("speedText")
 		self.speedText.SetText("速度")
-		self.speedText.SetPosition(w*24, y)
-		self.speedText.SetSize(w*3, tl_h)
-
+		self.speedText.SetPosition(px,py)
+		self.speedText.SetSize(w, l)
+		self.speedText.SetWindow(parentWindow)
 
 
 		self.speedSlider = OgreRTS.OgreObj.CreateSlider("speedSlider")
 
-		self.speedSlider.SetPosition(w*25, y+tl_h)
-		self.speedSlider.SetSize(w, l-tl_h)
+		self.speedSlider.SetPosition(px+w/4,py+l)
+		self.speedSlider.SetSize(w/2, l*5)
 
 		self.speedSlider.SetSliderValue(1.0)
+		self.speedSlider.SetWindow(parentWindow)
 
 		self.rightSpeedText = OgreRTS.OgreObj.CreateStaticText("rightSpeedText")
 		self.rightSpeedText.SetText("右車輪")
-		self.rightSpeedText.SetPosition(w*27, y)
-		self.rightSpeedText.SetSize(w*3, tl_h)
+		self.rightSpeedText.SetPosition(px+w,py)
+		self.rightSpeedText.SetSize(w, l)
+		self.rightSpeedText.SetWindow(parentWindow)
 
 		self.RightSpeedSlider = OgreRTS.OgreObj.CreateSlider("RightSpeedSlider")
 
-		self.RightSpeedSlider.SetPosition(w*28, y+tl_h)
-		self.RightSpeedSlider.SetSize(w, l-tl_h)
+		self.RightSpeedSlider.SetPosition(px+w+w/4,py+l)
+		self.RightSpeedSlider.SetSize(w/2, l*5)
 
 		self.RightSpeedSlider.SetSliderValue(0.5)
+		self.RightSpeedSlider.SetWindow(parentWindow)
 
 		self.LeftSpeedText = OgreRTS.OgreObj.CreateStaticText("LeftSpeedText")
 		self.LeftSpeedText.SetText("左車輪")
-		self.LeftSpeedText.SetPosition(w*30, y)
-		self.LeftSpeedText.SetSize(w*3, tl_h)
+		self.LeftSpeedText.SetPosition(px+w*2,py)
+		self.LeftSpeedText.SetSize(w, l)
+		self.LeftSpeedText.SetWindow(parentWindow)
 
 		self.LeftSpeedSlider = OgreRTS.OgreObj.CreateSlider("LeftSpeedSlider")
 
-		self.LeftSpeedSlider.SetPosition(w*31, y+tl_h)
-		self.LeftSpeedSlider.SetSize(w, l-tl_h)
+		self.LeftSpeedSlider.SetPosition(px+w*2+w/4, py+l)
+		self.LeftSpeedSlider.SetSize(w/2, l*5)
 
 		self.LeftSpeedSlider.SetSliderValue(0.5)
+		self.LeftSpeedSlider.SetWindow(parentWindow)
 
-
-
-
-
+	##
+	# @brief ロボット3Dモデルを生成
+	# @param self
+	def createRobotModel(self):
 		self.link[0] = OgreRTS.OgreObj.CreateBody("link0","Link0.mesh")
 		self.link[0].SetScale(self.scale/10, self.scale/10, self.scale/10)
 		self.link[1] = OgreRTS.OgreObj.CreateBody("link1","Link1.mesh")
@@ -674,6 +794,77 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
 		#self.finger[1] = OgreRTS.OgreObj.CreateBody("finger2","ODEBox.mesh")
 		#self.finger[1].SetScale(self.wf, self.wf, self.lf)
+	##
+	# @brief 初期化時に呼び出される関数
+	# @param self
+	def ogre_init(self):
+		self.CrawlerExist = True
+		OgreRTS.OgreObj.SetCameraAutoMoveFlag(False)
+
+		l = 0.3
+		w = 0.025
+		x = 0
+		y = 0.97 - l
+
+		tl_h = l/8
+
+		awx = 0.0
+		awy = 0.65
+		aww = 0.4
+		awl = 0.3
+		self.armWindow = OgreRTS.OgreObj.CreateStaticImage("armWindow")
+		self.armWindow.SetPosition(awx, awy)
+		self.armWindow.SetSize(aww, awl)
+
+
+		
+
+		px = 0
+		py = 0
+		sw = 1.0/4.0/4.0
+		sl = 1.0/8.0
+		self.createTargetSlider(self.armWindow,sw,sl,px,py)
+		px = sw*4.0
+		py = sl
+		self.createAngleSlider(self.armWindow,sw,sl,px,py)
+		
+		
+
+		self.createConnectWindow()
+
+
+		px = sw*4.0*2.0
+		py = 0.0
+		lw = 1-px
+		ll = 1.0/9.0
+		self.createArmWindow(self.armWindow,lw,ll,px,py)
+
+
+		cwx = awx + aww
+		cwy = awy
+		cww = 0.8 - cwx
+		cwl = awl
+		
+		self.crawlerWindow = OgreRTS.OgreObj.CreateStaticImage("crawlerWindow")
+		self.crawlerWindow.SetPosition(cwx, cwy)
+		self.crawlerWindow.SetSize(cww, cwl)
+		
+		px = 0
+		py = 0
+		sw = 1.0/2.0
+		sl = 1.0/6.0
+		self.createCrawlerWindow(self.crawlerWindow,sw,sl,px,py)
+		px = sw
+		py = 0
+		sw = (1.0-sw)/3.0
+		sl = 1.0/6.0
+		self.createCrawlerSlider(self.crawlerWindow,sw,sl,px,py)
+		
+		self.createRobotModel()
+
+
+
+		
 
 		OgreRTS.OgreObj.SetFloor("ground", "groundh", "Examples/GrassFloor", 5000, 2)                
 		OgreRTS.OgreObj.SetSkyBox("Examples/TrippySkyBox", 10000)
@@ -693,14 +884,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
 		self.setPosition(self.theta, 0.2)
 
-        
 
+		self.createMessageWindow()
 
 		if not OgreRTS.OgreObj.loadFont("SazanamiFont",30,True,"sazanami-mincho"):
-			self.errorText = OgreRTS.OgreObj.CreateStaticText("errorText")
-			self.errorText.SetText("Can not find sazanami-mincho.ttf.\nYou should download and copy\n sazanami-font to datafiles/fonts.")
-			self.errorText.SetPosition(0, 0)
-			self.errorText.SetSize(1, 1)
+			self.setMessageWindow("Can not find sazanami-mincho.ttf.\nYou should download and copy\n sazanami-font to datafiles/fonts.")
 
 	##
 	# @brief クローラーの姿勢のクォータニオンを取得
@@ -1174,19 +1362,44 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		else:
 			self.setCrawlerPos(numpy.array([0, 0, -self.clawlerlz/2]),[0,0,0])
 		self.crawler.SetVisible(e)
-		self.forwordButton.SetVisible(e)
-		self.backButton.SetVisible(e)
-		self.rightButton.SetVisible(e)
-		self.leftButton.SetVisible(e)
-		self.speed0Button.SetVisible(e)
-		self.FreeButton.SetVisible(e)
-		self.speedText.SetVisible(e)
-		self.speedSlider.SetVisible(e)
-		self.rightSpeedText.SetVisible(e)
-		self.RightSpeedSlider.SetVisible(e)
-		self.LeftSpeedText.SetVisible(e)
-		self.LeftSpeedSlider.SetVisible(e)
+		self.crawlerWindow.SetVisible(e)
 
+	##
+	# @brief ロボットアーム制御RTC、クローラー制御RTCと接続する
+	# @param self
+	def connectPort(self):
+		address = self.connectEditBox.GetText()
+		mes = address + "\n"
+		s = SearchRTC.SearchRTC(self.mgr,address)
+		if s.result == False:
+			return
+		result_ac = s.connectPort(self._ManipulatorCommonInterface_CommonPort.getPortRef(),"ArmController0.rtc","ManipulatorCommonInterface_Common")
+		result_am = s.connectPort(self._ManipulatorCommonInterface_MiddlePort.getPortRef(),"ArmController0.rtc","ManipulatorCommonInterface_Middle")
+		if result_ac and result_am:
+			mes += "アーム制御RTCと接続しました\n"
+		else:
+			mes += "アーム制御RTCとの接続に失敗しました\n"
+
+		result_cp = s.connectPort(self._crawlerPosIn.getPortRef(),"CrawlerController0.rtc","pos")
+		result_ci0 = s.connectPort(self._crawlerTargetSpeed0Out.getPortRef(),"CrawlerController0.rtc","in0")
+		result_ci1 = s.connectPort(self._crawlerTargetSpeed1Out.getPortRef(),"CrawlerController0.rtc","in1")
+
+		result_c = result_cp and result_ci0 and result_ci1
+
+		result_cwp = s.connectPort(self._crawlerPosIn.getPortRef(),"CrawlerControllerPWM20.rtc","pos")
+		result_cwi0 = s.connectPort(self._crawlerTargetSpeed0Out.getPortRef(),"CrawlerControllerPWM20.rtc","in0")
+		result_cwi1 = s.connectPort(self._crawlerTargetSpeed1Out.getPortRef(),"CrawlerControllerPWM20.rtc","in1")
+
+		result_cw = result_cwp and result_cwi0 and result_cwi1
+
+		if result_c or result_cwp:
+			mes += "クローラー制御RTCと接続しました\n"
+		else:
+			mes += "クローラー制御RTCとの接続に失敗しました\n"
+
+		self.setMessageWindow(mes)
+		self.connectWindow.SetVisible(False)
+	
 	##
 	# @brief GUIのアクション時のコールバック
 	# @param self
@@ -1236,7 +1449,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 				self._ManipulatorCommonInterface_Common._ptr().servoOFF()
 			except:
 				pass
-                
+
 
 		elif fname == "pxsliderSliderChanged":
 			self.targetPosition[0] = (-0.5 + self.slx.GetSliderValue()) * self.targetLimit*2
@@ -1322,8 +1535,18 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 				self.crawlerExistButton.SetText("クローラー非表示")
 				self.setClawlerExist(True)
 
+		elif fname == "connectButtonClicked":
+				self.connectWindow.SetVisible(True)
+		elif fname == "startConnectButtonClicked":
+				self.connectPort()
+				
+		elif fname == "unVisibleConnectWindowButtonClicked":
+				self.connectWindow.SetVisible(False)
 
-                
+		elif fname == "messageWindowButtonClicked":
+				self.messageWindow.SetVisible(False)
+		
+
 ##
 # @brief RTC初期化関数
 # @param manager マネージャオブジェクト
@@ -1352,7 +1575,8 @@ def main():
 	mgr.runManager()
 
 if __name__ == "__main__":
-        main()
+        pass
+        #main()
 	
         
         #f = JARA_ARM.CarPosWithElbow([[1,0,0,10],[0,1,0,10],[0,0,1,10]], 0, 0)
