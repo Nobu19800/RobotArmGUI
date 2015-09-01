@@ -22,7 +22,7 @@ from OpenRTM_aist import RTObject
 from OpenRTM_aist import CorbaConsumer
 from omniORB import CORBA
 import CosNaming
-from rtctree.utils import build_attr_string, dict_to_nvlist, nvlist_to_dict
+
 
 
 
@@ -76,7 +76,19 @@ def ConnectDataPort(obj1, obj2, c_name):
 
     ret = obj2.connect(conprof)
 
-
+##
+# @brief namevalueリストから指定したキーの値を取得
+# @param nvlist namevalueリスト
+# @param name 名前
+# @return 値
+#
+def nvlist_getValue(nvlist, name):
+    
+    for item in nvlist:
+        if name == item.name:
+            return item.value.value()
+    
+    return None
 
 ##
 # @brief 各RTCのパスを取得する関数
@@ -114,11 +126,11 @@ def ListRecursive(context, rtclist, name):
                             
                             
                             profile = p.get_port_profile()
-                            props = nvlist_to_dict(profile.properties)
+                            #props = nvlist_to_dict(profile.properties)
                             tp_n = profile.name.split('.')[1]
                             
                             
-                            rtclist[rtcname][tp_n] = {"port":p,"type":props["port.port_type"]}
+                            rtclist[rtcname][tp_n] = {"port":p,"type":nvlist_getValue(profile.properties, "port.port_type")}
                             
                             
                   except:
