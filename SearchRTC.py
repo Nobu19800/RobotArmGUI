@@ -118,8 +118,7 @@ def ListRecursive(context, rtclist, name):
                   tkm.setObject(context.resolve(i.binding_name))
                   inobj = tkm.getObject()._narrow(RTC.RTObject)
                   rtcname = i.binding_name[0].id+"."+i.binding_name[0].kind
-                  rtclist[rtcname] = {}
-                  
+                  rtclist[rtcname] = {"RTC":inobj,"ports":{}}
                   try:
                        pin = inobj.get_ports()
                        for p in pin:
@@ -130,7 +129,7 @@ def ListRecursive(context, rtclist, name):
                             tp_n = profile.name.split('.')[1]
                             
                             
-                            rtclist[rtcname][tp_n] = {"port":p,"type":nvlist_getValue(profile.properties, "port.port_type")}
+                            rtclist[rtcname]["ports"][tp_n] = {"port":p,"type":nvlist_getValue(profile.properties, "port.port_type")}
                             
                             
                   except:
@@ -183,8 +182,52 @@ class SearchRTC:
 
 	
 
+	##
+	# @brief RTCのアクティブ化
+	# @param self
+	# @param rtc RTC名
+	def activeComponent(self, rtc_name):
+		if rtc_name in self.c_list:
+			rtc = self.c_list[rtc_name]["RTC"]
+			if rtc.get_owned_contexts()[0].get_component_state(rtc) == OpenRTM_aist.RTC.INACTIVE_STATE:
+				rtc.get_owned_contexts()[0].activate_component(rtc)
+				return True
+		return False
 
-	
+	##
+	# @brief RTCの非アクティブ化
+	# @param self
+	# @param rtc RTC名
+	def deactiveComponent(self, rtc_name):
+		if rtc_name in self.c_list:
+			rtc = self.c_list[rtc_name]["RTC"]
+			if rtc.get_owned_contexts()[0].get_component_state(rtc) == OpenRTM_aist.RTC.ACTIVE_STATE:
+				rtc.get_owned_contexts()[0].deactivate_component(rtc)
+				return True
+		return False
+
+	##
+	# @brief RTCのリセット
+	# @param self
+	# @param rtc RTC名
+	def resetComponent(self, rtc_name):
+		if rtc_name in self.c_list:
+			rtc = self.c_list[rtc_name]["RTC"]
+			if rtc.get_owned_contexts()[0].get_component_state(rtc) == OpenRTM_aist.RTC.ERROR_STATE:
+				rtc.get_owned_contexts()[0].reset_component(rtc)
+				return True
+		return False
+
+	##
+	# @brief RTCの状態取得
+	# @param self
+	# @param rtc RTC名
+	def getComponentState(self, rtc_name):
+		if rtc_name in self.c_list:
+			rtc = self.c_list[rtc_name]["RTC"]
+			return rtc.get_owned_contexts()[0].get_component_state(rtc)
+			
+		return -99
 
 	##
 	# @brief 名前からポートオブジェクト取得
@@ -193,8 +236,8 @@ class SearchRTC:
 	# @param name ポート名
 	def getPort_Name(self, rtc_name, port_name):
 		if rtc_name in self.c_list:
-			if port_name in self.c_list[rtc_name]:
-				return self.c_list[rtc_name][port_name]
+			if port_name in self.c_list[rtc_name]["ports"]:
+				return self.c_list[rtc_name]["ports"][port_name]
 		return None
 		
 	##

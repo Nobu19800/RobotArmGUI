@@ -212,7 +212,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.moveMode = RobotArmGUI.ButtonMode
 		self.mgr = manager
 
+		self.address = ""
+		self.armRTCName = ""
+		self.crawlerRTCName = ""
 
+		self.meswindowVisible = False
 		
 		# initialize of configuration-data.
 		# <rtc-template block="init_conf_param">
@@ -545,6 +549,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.messageWindow.SetVisible(True)
 		self.messageTextBox.SetText(mes)
 		self.messageWindow.moveToFront()
+		self.meswindowVisible = True
 	##
 	# @brief メッセージ表示ウインドウを生成
 	# @param self
@@ -610,17 +615,19 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		self.connectButton.SetSize(w, l)
 		self.connectButton.SetWindow(parentWindow)
 		
-		self.closeGripperButton = OgreRTS.OgreObj.CreateButton("closeGripperButton")
-		self.closeGripperButton.SetText("ハンドを閉じる")
-		self.closeGripperButton.SetPosition(px, py+l)
-		self.closeGripperButton.SetSize(w, l)
-		self.closeGripperButton.SetWindow(parentWindow)
+		self.activeButton = OgreRTS.OgreObj.CreateButton("activeButton")
+		self.activeButton.SetText("アクティブ化")
+		self.activeButton.SetPosition(px, py+l)
+		self.activeButton.SetSize(w, l)
+		self.activeButton.SetWindow(parentWindow)
+		self.activeButton.SetAlpha(0.5)
 
-		self.openGripperButton = OgreRTS.OgreObj.CreateButton("openGripperButton")
-		self.openGripperButton.SetText("ハンドを開く")
-		self.openGripperButton.SetPosition(px, py+l*2)
-		self.openGripperButton.SetSize(w, l)
-		self.openGripperButton.SetWindow(parentWindow)
+		self.deactiveButton = OgreRTS.OgreObj.CreateButton("deactiveButton")
+		self.deactiveButton.SetText("非アクティブ化")
+		self.deactiveButton.SetPosition(px, py+l*2)
+		self.deactiveButton.SetSize(w, l)
+		self.deactiveButton.SetWindow(parentWindow)
+		self.deactiveButton.SetAlpha(0.5)
 
 		self.goHomeButton = OgreRTS.OgreObj.CreateButton("goHomeButton")
 		self.goHomeButton.SetText("初期位置へ移動")
@@ -1194,7 +1201,15 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 				pass
 				#theta = [0.5, 0.5, 0]
 				#self.setPosition(theta, 0.2)
-
+		try:
+			state = 0x00
+			result,state = self._ManipulatorCommonInterface_Common._ptr().getState()
+			if (state & JARA_ARM.CONST_BINARY_00000010) == 0x00:
+				
+				if not self.meswindowVisible:
+					self.setMessageWindow("ロボットアームが停止しました。\n動作を再開するには初期位置へ移動ボタンを押してください")
+		except:
+			pass
 
 	##
 	# @brief シミュレーション更新時に呼び出される関数
@@ -1363,40 +1378,178 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 			self.setCrawlerPos(numpy.array([0, 0, -self.clawlerlz/2]),[0,0,0])
 		self.crawler.SetVisible(e)
 		self.crawlerWindow.SetVisible(e)
+	##
+	# @brief ロボットアーム制御RTC、クローラー制御RTCをアクティブ化
+	# @param self
+	def activeComponent(self):
+		mes = ""
+		s = SearchRTC.SearchRTC(self.mgr,self.address)
+		if s.result == False:
+			self.setMessageWindow("ネームサーバーに接続できませんでしした")
+			
+		if self.armRTCName != "":
+			result_ar = s.resetComponent(self.armRTCName)
+			if result_ar:
+				mes += "アーム制御RTCをリセットしました\n"
+			result_aa = s.activeComponent(self.armRTCName)
+			if result_aa:
+				mes += "アーム制御RTCをアクティブ化しました\n"
+			else:
+				mes += "アーム制御RTCをアクティブ化できませんでした\n"
 
+		if self.crawlerRTCName != "":
+			result_cr = s.resetComponent(self.crawlerRTCName)
+			if result_cr:
+				mes += "クローラー制御RTCをリセットしました\n"
+				
+			result_cia = s.activeComponent(self.crawlerRTCName)
+
+
+			if result_cia:
+				mes += "クローラー制御RTCをアクティブ化しました\n"
+			else:
+				mes += "クローラー制御RTCをアクティブ化できませんでした\n"
+
+		self.get_owned_contexts()[0].activate_component(self.getObjRef())
+		self.setMessageWindow(mes)
+
+	##
+	# @brief ロボットアーム制御RTC、クローラー制御RTCを非アクティブ化
+	# @param self
+	def deactiveComponent(self):
+		mes = ""
+		s = SearchRTC.SearchRTC(self.mgr,self.address)
+		if s.result == False:
+			self.setMessageWindow("ネームサーバーに接続できませんでしした")
+			
+		if self.armRTCName != "":
+			result_aa = s.deactiveComponent(self.armRTCName)
+			if result_aa:
+				mes += "アーム制御RTCを非アクティブ化しました\n"
+			else:
+				mes += "アーム制御RTCを非アクティブ化できませんでした\n"
+
+		if self.crawlerRTCName != "":
+			result_cia = s.deactiveComponent(self.crawlerRTCName)
+
+
+			if result_cia:
+				mes += "クローラー制御RTCを非アクティブ化しました\n"
+			else:
+				mes += "クローラー制御RTCを非アクティブ化できませんでした\n"
+
+		self.get_owned_contexts()[0].deactivate_component(self.getObjRef())
+		
+		self.setMessageWindow(mes)
+
+	##
+	# @brief ロボットアーム制御RTC、クローラー制御RTCをリセット
+	# @param self
+	def resetComponent(self):
+		mes = ""
+		s = SearchRTC.SearchRTC(self.mgr,self.address)
+		if s.result == False:
+			self.setMessageWindow("ネームサーバーに接続できませんでしした")
+			
+		if self.armRTCName != "":
+			result_aa = s.resetComponent(self.armRTCName)
+			if result_aa:
+				mes += "アーム制御RTCをリセットしました\n"
+			
+
+		if self.crawlerRTCName != "":
+			result_cia = s.resetComponent(self.crawlerRTCName)
+
+
+			if result_cia:
+				mes += "クローラー制御RTCをリセットしました\n"
+			
+
+		self.get_owned_contexts()[0].reset_component(self.getObjRef())
+		
+		self.setMessageWindow(mes)
+
+	##
+	# @brief ロボットアーム制御RTCと接続する
+	# @param self
+	# @param s RTC検索オブジェクト
+	# @param rtcName RTC名
+	def connectArmPort(self, s, rtcName):
+		result_ac = s.connectPort(self._ManipulatorCommonInterface_CommonPort.getPortRef(),rtcName,"ManipulatorCommonInterface_Common")
+		result_am = s.connectPort(self._ManipulatorCommonInterface_MiddlePort.getPortRef(),rtcName,"ManipulatorCommonInterface_Middle")
+		result = result_ac and result_am
+		if result:
+			self.armRTCName = rtcName
+		return result
+
+	##
+	# @brief クローラー制御RTCと接続する
+	# @param self
+	# @param s RTC検索オブジェクト
+	# @param rtcName RTC名
+	def connectCrawlerPort(self, s, rtcName):
+		result_cp = s.connectPort(self._crawlerPosIn.getPortRef(),rtcName,"pos")
+		result_ci0 = s.connectPort(self._crawlerTargetSpeed0Out.getPortRef(),rtcName,"in0")
+		result_ci1 = s.connectPort(self._crawlerTargetSpeed1Out.getPortRef(),rtcName,"in1")
+		
+		
+		result = result_cp and result_ci0 and result_ci1
+		
+		if result:
+			self.crawlerRTCName = rtcName
+		return result
+		
 	##
 	# @brief ロボットアーム制御RTC、クローラー制御RTCと接続する
 	# @param self
 	def connectPort(self):
-		address = self.connectEditBox.GetText()
-		mes = address + "\n"
-		s = SearchRTC.SearchRTC(self.mgr,address)
+		self.address = self.connectEditBox.GetText()
+		self.address = self.address.replace(" ",".")
+		mes = self.address + "\n"
+		s = SearchRTC.SearchRTC(self.mgr,self.address)
 		if s.result == False:
-			return
-		result_ac = s.connectPort(self._ManipulatorCommonInterface_CommonPort.getPortRef(),"ArmController0.rtc","ManipulatorCommonInterface_Common")
-		result_am = s.connectPort(self._ManipulatorCommonInterface_MiddlePort.getPortRef(),"ArmController0.rtc","ManipulatorCommonInterface_Middle")
-		if result_ac and result_am:
+			self.setMessageWindow("ネームサーバーに接続できませんでしした")
+			
+		result_a = self.connectArmPort(s, "RobotArmController.rtc")
+		
+		if not result_a:
+			result_a = self.connectArmPort(s, "ArmController0.rtc")
+			if not result_a:
+				result_a = self.connectArmPort(s, "RobotArmSimulator0.rtc")
+			
+			
+			
+		if result_a:
+			
 			mes += "アーム制御RTCと接続しました\n"
+			self.activeButton.SetAlpha(1.0)
+			self.deactiveButton.SetAlpha(1.0)
 		else:
 			mes += "アーム制御RTCとの接続に失敗しました\n"
 
-		result_cp = s.connectPort(self._crawlerPosIn.getPortRef(),"CrawlerController0.rtc","pos")
-		result_ci0 = s.connectPort(self._crawlerTargetSpeed0Out.getPortRef(),"CrawlerController0.rtc","in0")
-		result_ci1 = s.connectPort(self._crawlerTargetSpeed1Out.getPortRef(),"CrawlerController0.rtc","in1")
+		
+		result_c = self.connectCrawlerPort(s,"Crawler.rtc")
 
-		result_c = result_cp and result_ci0 and result_ci1
+		
+		
+		if not result_c:
+			result_c = self.connectCrawlerPort(s,"CrawlerController0.rtc")
+			
+			if not result_c:
+				result_c = self.connectCrawlerPort(s,"CrawlerControllerPWM20.rtc")
+				
 
-		result_cwp = s.connectPort(self._crawlerPosIn.getPortRef(),"CrawlerControllerPWM20.rtc","pos")
-		result_cwi0 = s.connectPort(self._crawlerTargetSpeed0Out.getPortRef(),"CrawlerControllerPWM20.rtc","in0")
-		result_cwi1 = s.connectPort(self._crawlerTargetSpeed1Out.getPortRef(),"CrawlerControllerPWM20.rtc","in1")
-
-		result_cw = result_cwp and result_cwi0 and result_cwi1
-
-		if result_c or result_cwp:
+		if result_c:
+			
 			mes += "クローラー制御RTCと接続しました\n"
+			self.activeButton.SetAlpha(1.0)
+			self.deactiveButton.SetAlpha(1.0)
 		else:
 			mes += "クローラー制御RTCとの接続に失敗しました\n"
 
+		
+		if result_a or result_c:
+			mes += "動作を開始するにはアクティブ化ボタンを押してください\n"
 		self.setMessageWindow(mes)
 		self.connectWindow.SetVisible(False)
 	
@@ -1409,16 +1562,11 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 		if fname == "targetButtonClicked":
 			self.inputTargetPosition()
 
-		elif fname == "closeGripperButtonClicked":
-			try:
-				self._ManipulatorCommonInterface_Middle._ptr().closeGripper()
-			except:
-				pass
-		elif fname == "openGripperButtonClicked":
-			try:
-				self._ManipulatorCommonInterface_Middle._ptr().openGripper()
-			except:
-				pass
+		elif fname == "activeButtonClicked":
+			self.activeComponent()
+			
+		elif fname == "deactiveButtonClicked":
+			self.deactiveComponent()
 		elif fname == "goHomeButtonClicked":
 			try:
 				self._ManipulatorCommonInterface_Middle._ptr().goHome()
@@ -1545,6 +1693,7 @@ class RobotArmGUI(OpenRTM_aist.DataFlowComponentBase):
 
 		elif fname == "messageWindowButtonClicked":
 				self.messageWindow.SetVisible(False)
+				self.meswindowVisible = False
 		
 
 ##
@@ -1576,6 +1725,17 @@ def main():
 
 if __name__ == "__main__":
         pass
+        #print JARA_ARM.CONST_BINARY_00000001
+        #print JARA_ARM.CONST_BINARY_00000010
+        #print JARA_ARM.CONST_BINARY_00000100
+        #print JARA_ARM.CONST_BINARY_00001000
+        #print JARA_ARM.OK
+        #print JARA_ARM.NG
+        #print JARA_ARM.STATUS_ERR
+        #print JARA_ARM.VALUE_ERR
+        #print JARA_ARM.NOT_SV_ON_ERR
+        #print JARA_ARM.FULL_MOTION_QUEUE_ERR
+        #print JARA_ARM.NOT_IMPLEMENTED
         #main()
 	
         
