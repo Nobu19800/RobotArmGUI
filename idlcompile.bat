@@ -1,4 +1,5 @@
 echo off
+cd /d %~dp0
 setlocal
 for %%I in (python.exe) do if exist %%~$path:I set f=%%~$path:I
 if exist %f% do (
